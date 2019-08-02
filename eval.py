@@ -105,87 +105,26 @@ from misc.dataloader import Dataloader
 
 dataloader = Dataloader(args.input_json, args.input_ques_h5)
 
-def weights_init(m):
-    name = torch.typename(m)
-    if name.find('Convolution'):
-        m.weight.data.normal_(0.0, 0.02)
-        m.bias.data.fill_(0)
-    elif name.find('BatchNormalization'):
-        if m.weight :
-            m.weight.data.normal_(1.0, 0.02)
-        if m.bias:
-            m.bias.data.fill_(0)
+class Model(nn.Module):
 
-protos = {}
+    def __init__(self):
+        
+        self.vocab_size = dataloader.getVocabSize()
+        self.input_encoding_size = args.input_encoding_size
+        self.rnn_size = args.rnn_size
+        self.num_layers = args.rnn_layers
+        self.drop_prob_lm = args.drop_prob_lm
+        self.seq_length = dataloader.getSeqLength()
+        self.batch_size = args.batch_size
+        self.emb_size = args.input_encoding_size
+        self.hidden_size = args.input_encoding_size
+        self.att_size = args.att_size
+        
+        self.encoder = DocumentCNN(self.vocab_size + 1, args.txtSize, 0, 1, args.cnn_dim)
+        
+        self.decoder = LanguageModel(self.input_encoding_size, self.rnn_size, self.seq_length, self.vocab_size, num_layers=self.num_layers, dropout=self.dropout)
+        
+        self.crit = LanguageModelCriterion()
 
-if len(args.start_from) > 0:
-    print('initializing weights from' + args.start_from)
-    loaded_checkpoint = torch.load(args.start_from)
-    lmOpt = loaded_checkpoint.lmOpt
-else:
-    lmOpt = {}
-    lmOpt['vocab_size'] = dataloader.getVocabSize()
-    lmOpt['input_encoding_size'] = args.input_encoding_size
-    lmOpt['rnn_size'] = args.rnn_size
-    lmOpt['num_layers'] = 1
-    lmOpt['drop_prob_lm'] = args.drop_prob_lm
-    lmOpt['seq_length'] = dataloader.getSeqLength()
-    lmOpt['batch_size'] = args.batch_size
-    lmOpt['emb_size'] = args.input_encoding_size
-    lmOpt['hidden_size'] = args.input_encoding_size
-    lmOpt['att_size'] = args.att_size
-    lmOpt['num_layers'] = args.rnn_layers
-
-print('Building the model from scratch...')
-
-from misc.LanguageModel import Struct
-
-protos = Struct(**protos)
-protos.netE = DocumentCNN(lmOpt['vocab_size'] + 1, args.txtSize, 0, 1, args.cnn_dim)
-protos.netE.apply(weights_init)
-
-protos.netD = LanguageModel(lmOpt['input_encoding_size'], lmOpt['rnn_size'], lmOpt['seq_length'], lmOpt['vocab_size'], lmOpt['num_layers'], lmOpt['drop_prob_lm'])
-
-def decoder_convert_net(input):
-    narrowed = input[1:lmOpt['seq_length']+1]
-    transposed = narrowed.t()
-
-protos.crit = LanguageModelCriterion()
-
-print('total number of parameters in protos.netE embedding net: ', len(protos.netE.parameters))
-
-print('vocab_size', lmOpt['vocab_size'])
-print('seq_length', lmOpt['seq_length'])
-
-print('ship everything to GPU')
-
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-if args.gpuid >= 0:
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-
-    for k in vars(protos):
-        protos.k.to(device)
-
-input_text_emb1 = torch.zeros(args.batch_size, args.txtSize, device=device)
-input_text_emb2 = torch.zeros(args.batch_size, args.txtSize, device=device)
-
-eparams = protos.netE.parameters()
-grad_eparams = [param.grad for param in eparams]
-
-lparams = protos.netD.parameters()
-grad_lparams = [param.grad for param in lparams]
-
-eparams = [param.uniform_(-0.1, 0.1) for param in eparams]
-lparams = [param.uniform_(-0.1, 0.1) for param in lparams]
-
-if len(args.start_from) > 0:
-    print('Load the weight ...')
-    eparams.copy_(loaded_checkpoint.eparams)
-    lparams.copy_(loaded_checkpoint.lparams)
-
-print('total number of parameters in Question embedding net: ', len(eparams))
-assert(len(eparams) == len(grad_eparams))
-
-print('total number of parameters of language Generating model ', len(lparams))
-assert(len(lparams) == len(grad_lparams))
-
+    
+    def forward(self, inputs, )

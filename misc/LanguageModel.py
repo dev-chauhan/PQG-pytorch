@@ -18,7 +18,9 @@ class layer(nn.Module):
         self.vocab_size = vocab_size
         self.num_layers = num_layers
         self.core = LSTM(input_encoding_size, vocab_size + 1, rnn_size, num_layers, dropout=dropout)
-        self.embedding = nn.Embedding(vocab_size + 1, input_encoding_size)
+	# 0 is padding token
+	# vocab_size + 1 is start token
+	self.embedding = nn.Embedding(vocab_size + 2, input_encoding_size, padding_idx=0)
         self._createInitialState(1)
 
     def _createInitialState(self, batch_size):
@@ -53,15 +55,14 @@ class layer(nn.Module):
             if t == 0:
                 xt = imgs
             elif t == 1:
-                it = torch.zeros(batch_size, dtype=torch.long) + self.vocab_size
+                it = torch.zeros(batch_size, dtype=torch.long) + self.vocab_size + 1
                 self.embedding_inputs.append(it)
                 xt = self.embedding(it)
             else:
                 it = seq[t - 2]
                 if torch.sum(it) == 0:
                     can_skip = True
-                # it[torch.eq(it, 0)] = 1 # i need to modify embedding for padding and start token this is done blindly as torch implementation
-
+                
                 if not can_skip:
                     self.embedding_inputs.append(it)
                     xt = self.embedding(it)
@@ -93,7 +94,7 @@ class layer(nn.Module):
             if t == 0:
                 xt = imgs
             elif t == 1:
-                it = torch.zeros(batch_size, dtype=torch.long) + self.vocab_size
+                it = torch.zeros(batch_size, dtype=torch.long) + self.vocab_size + 1
                 xt = self.embedding(it)
 
             else:
@@ -109,7 +110,9 @@ class layer(nn.Module):
                     it = torch.multinomial(prob_prev, 1)
                     sampleLogprobs = logprobs.gather(-1, it)
                     it = it.view(-1).long()
-                xt = self.embedding(it)
+		# vocab indexing starts from 1 so have to increase each index by 1
+                it = it + 1
+		xt = self.embedding(it)
             # xt : (batch_size, emb_size)
             # it : (batch_size)
             if t >= 2:
@@ -126,7 +129,10 @@ class layer(nn.Module):
         return seq, seqLogprobs
     
     def beam_search(self, imgs, beam_size=10):
-
+	'''
+	beam_search is not working now due to change in embedding convension !!!
+	just need to do small changes which will i do later now avoid using beam_search
+	'''
         batch_size, feat_dim = imgs.size()[0], imgs.size()[1]
 
         def compare_key(a):
