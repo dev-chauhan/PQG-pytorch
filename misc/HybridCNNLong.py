@@ -14,12 +14,13 @@ class HybridCNNLong(nn.Module):
         self.dropout_layer = nn.Dropout(dropout)
 
     def forward(self, input):
-        out1 = self.conv1(input)
+        input1 = torch.tensor([input[i].t() for i in range(input.size()[0])])
+        out1 = self.conv1(input1)
         out1 = self.threshold(out1)
         out2 = self.conv2(out1)
         out2 = self.threshold(out2)
         
-        h1 = torch.tensor([out2[:,i,:] for i in range(out2.size()[1])])
+        h1 = torch.tensor([out2[:,:,i] for i in range(out2.size()[-1])])
 
         r2 = self.GRU(h1)
         out = self.linear(self.dropout_layer(r2))

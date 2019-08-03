@@ -189,3 +189,38 @@ assert(len(eparams) == len(grad_eparams))
 print('total number of parameters of language Generating model ', len(lparams))
 assert(len(lparams) == len(grad_lparams))
 
+def JointEmbeddingLoss(feature_emb1, feature_emb2):
+    batch_size = feature_emb1.size()[0]
+    score = torch.zeros(batch_size, batch_size)
+    grads_text1 = torch.zeros(*feature_emb1.size())
+    grads_text2 = torch.zeros(*feature_emb2.size())
+
+    loss = 0
+    acc_smooth = 0.0
+    acc_batch = 0.0
+    
+    for i in range(batch_size):
+        for j in range(batch_size):
+            score[i, j] = torch.dot(feature_emb2[i], feature_emb1[j])
+        
+        label_score = score[i, i]
+        for j in range(batch_size):
+            if i != j :
+                cur_score = score[i, j]
+                thresh = cur_score - label_score + 1
+                if thresh > 0:
+                    loss += thresh
+                    txt_diff = feature_emb1[j] - feature_emb1[i]
+                    grads_text2[i] += txt_diff
+                    grads_text1[j] += feature_emb2[i]
+                    grads_text1[i] -= feature_emb2[i]
+        
+        max_ix = score[i].max(1)
+        if max_ix[0,0] == i :
+            acc_batch = acc_batch + 1
+    
+    acc_batch = 100 * (acc_batch / batch_size)
+    denom = batch_size * batch_size
+    res = [grads_text1 / denom, grads_text2 / denom]
+    acc_smooth = 0.99 * acc_smooth + 0.01 * acc_batch
+    return loss / denom, res

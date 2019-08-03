@@ -12,8 +12,8 @@ class Dataloader(object):
         with open(input_json_file_path) as input_file:
             data_dict = json.load(input_file)
         
-        for k, v in data_dict:
-            self.__dict__[k] = v
+        for k in data_dict:
+            self.__dict__[k] = data_dict[k]
         
         self.vocab_size = 0
         for i, w in self.ix_to_word:
@@ -21,24 +21,24 @@ class Dataloader(object):
 
         print('DataLoader loading h5 question file:', input_ques_h5_path)
         qa_data = h5py.File(input_ques_h5_path, 'r')
-        self.ques_train = qa_data['ques_train']
-        self.ques_len_train = qa_data['ques_length_train']
-        self.ques_id_train = qa_data['ques_cap_id_train']
+        self.ques_train = qa_data['ques_train'][...].astype(int)
+        self.ques_len_train = qa_data['ques_length_train'][...].astype(int)
+        self.ques_id_train = qa_data['ques_cap_id_train'][...].astype(int)
 
-        self.label_train = qa_data['ques1_train']
-        self.label_len_train = qa_data['ques1_length_train']
+        self.label_train = qa_data['ques1_train'][...].astype(int)
+        self.label_len_train = qa_data['ques1_length_train'][...].astype(int)
 
         self.train_id = 0
         self.seq_length = self.ques_train.shape[1]
 
         print('self.ques_train.shape[0]', self.ques_train.shape[0])
 
-        self.ques_test = qa_data['ques_test']
-        self.ques_len_test = qa_data['ques_length_test']
-        self.ques_id_test = qa_data['ques_cap_id_test']
+        self.ques_test = qa_data['ques_test'][...].astype(int)
+        self.ques_len_test = qa_data['ques_length_test'][...].astype(int)
+        self.ques_id_test = qa_data['ques_cap_id_test'][...].astype(int)
 
-        self.label_test = qa_data['ques1_test']
-        self.label_len_test = qa_data['ques1_length_test']
+        self.label_test = qa_data['ques1_test'][...].astype(int)
+        self.label_len_test = qa_data['ques1_length_test'][...].astype(int)
 
         self.test_id = 0
 
