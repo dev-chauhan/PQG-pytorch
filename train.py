@@ -54,7 +54,7 @@ parser.add_argument('--losses_log_every', type=int , default=200, help='How ofte
 parser.add_argument('--backend', default='cudnn', help='nn|cudnn')
 parser.add_argument('--id', default='1', help='an id identifying this run/job. used in cross-val and appended when writing progress files')
 parser.add_argument('--seed', type=int, default=1234, help='random number generator seed to use')
-parser.add_argument('--gpuid', type=int, default=0, help='which gpu to use. -1 = use CPU')
+parser.add_argument('--gpuid', type=int, default=-1, help='which gpu to use. -1 = use CPU')
 parser.add_argument('--nGPU', type=int, default=3, help='Number of GPUs to use by default')
 
 #text encoder
@@ -66,6 +66,10 @@ args = parser.parse_args()
 torch.manual_seed(args.seed)
 print(args)
 
+<<<<<<< HEAD
+=======
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+>>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e
 # subprocess.run(['mkdir', '-p', args.save])
 
 # import logging
@@ -121,7 +125,8 @@ class Model(nn.Module):
         self.emb_size = args.input_encoding_size
         self.hidden_size = args.input_encoding_size
         self.att_size = args.att_size
-        
+        self.device = device
+
         self.encoder = DocumentCNN(self.vocab_size + 1, args.txtSize, 0, 1, args.cnn_dim)
         
         self.decoder = LanguageModel(self.input_encoding_size, self.rnn_size, self.seq_length, self.vocab_size, num_layers=self.num_layers, dropout=self.drop_prob_lm)
@@ -130,9 +135,15 @@ class Model(nn.Module):
     
     def JointEmbeddingLoss(self, feature_emb1, feature_emb2):
         batch_size = feature_emb1.size()[0]
+<<<<<<< HEAD
         score = torch.zeros(batch_size, batch_size)
         grads_text1 = torch.zeros(*feature_emb1.size())
         grads_text2 = torch.zeros(*feature_emb2.size())
+=======
+        score = torch.zeros(batch_size, batch_size, device = self.device)
+        grads_text1 = torch.zeros(*feature_emb1.size(), device = self.device)
+        grads_text2 = torch.zeros(*feature_emb2.size(), device = self.device)
+>>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e
 
         loss = 0
         acc_smooth = 0.0
@@ -165,7 +176,12 @@ class Model(nn.Module):
         return loss / denom, res
 
     def forward(self, input_sentences):
+<<<<<<< HEAD
         input_one_hot = torch.zeros(*input_sentences.size(), self.vocab_size + 1)
+=======
+        print('Model forward', input_sentences.size())
+        input_one_hot = torch.zeros(*input_sentences.size(), self.vocab_size + 1, device=self.device)
+>>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e
         for batch in range(input_sentences.size()[0]):
             for idx in range(input_sentences.size()[1]):
                 input_one_hot[batch][idx][input_sentences[batch][idx]] = 1
@@ -174,9 +190,18 @@ class Model(nn.Module):
         probs = self.decoder([encoded, input_sentences_t])
         narrowed = probs[1:self.seq_length + 1]
         # print(narrowed.size())
+<<<<<<< HEAD
         modified_probs = torch.stack([narrowed[:,i,:] for i in range(narrowed.size()[1])])
 
         local_loss = self.crit(probs, input_sentences_t)
+=======
+        modified_probs = narrowed.permute(1, 0, 2)
+        # modified_probs = torch.stack([narrowed[:,i,:] for i in range(narrowed.size()[1])])
+
+#        local_loss = self.crit(probs, input_sentences_t)
+        print(probs.size(), input_sentences.size())
+        local_loss = nn.CrossEntropyLoss()(probs[1:self.seq_length + 1].permute(1, 2, 0), input_sentences)
+>>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e
 
         encoded_output = self.encoder(modified_probs)
         encoded_input = encoded
@@ -190,6 +215,7 @@ class Model(nn.Module):
         return self.decoder.sample(encoded_input)
 
 model = Model()
+<<<<<<< HEAD
 
 def train_epoch(model, model_optim, device):
     
@@ -208,6 +234,29 @@ def train_epoch(model, model_optim, device):
 
         model_optim.step()
         print('#',batch, end='')
+=======
+
+def train_epoch(model, model_optim, device):
+    
+    n_batch = dataloader.getDataNum(1) // args.batch_size
+    n_batch = 1
+    for batch in range(n_batch):
+        model_optim.zero_grad()
+
+        input_sentence, _, __ = dataloader.next_batch(args.batch_size, gpuid=args.gpuid)
+        input_sentence = input_sentence.to(device)
+        print('before size', input_sentence.size())
+        local_loss, global_loss, encoded_input = model(input_sentence)
+#        print('.',end='')
+        print(local_loss)
+        print(global_loss)
+        local_loss.backward(retain_graph=True)
+#        print(',',end='')
+        global_loss.backward(retain_graph=True)
+#        print('*',end='')
+        model_optim.step()
+        print(batch)
+>>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e
 
     return local_loss, global_loss, encoded_input
 
@@ -218,15 +267,34 @@ model_optim = optim.RMSprop(model.parameters()) # for trial using default and no
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
+<<<<<<< HEAD
+=======
+if torch.cuda.device_count() > 1:
+    print('Lets use', torch.cuda.device_count(), 'GPUs')
+#    torch.distributed.init_process_group(backend='nccl')
+#    model = DistributedDataParallel(model)
+    model = nn.DataParallel(model)
+
+>>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e
 model = model.to(device)
 # model_optim = model_optim.to(device)
 
 n_epoch = args.n_epoch
 
 for epoch in range(n_epoch):
+<<<<<<< HEAD
     
     local_loss, global_loss, encoded_input = train_epoch(model, model_optim, device)
 
     print(local_loss, global_loss)
 
 print('Done !!!')
+=======
+    
+    local_loss, global_loss, encoded_input = train_epoch(model, model_optim, device)
+    
+    n_ = ( dataloader.getDataNum(1) // args.batch_size ) * args.batch_size
+    print(local_loss.item() / n_, global_loss.item() / n_)
+
+print('Done !!!')
+>>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e

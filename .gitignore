@@ -1,4 +1,5 @@
 data/quora_data_prepro.json
 tst.py
 data/quora_data_prepro.h5
+*.pyc
 misc/__pycache__/*

@@ -20,13 +20,17 @@ class layer(nn.Module):
         self.core = LSTM(input_encoding_size, vocab_size + 1, rnn_size, num_layers, dropout=dropout)
 	    # 0 is padding token
 	    # vocab_size + 1 is start token
+<<<<<<< HEAD
+=======
+        self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+>>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e
         self.embedding = nn.Embedding(vocab_size + 2, input_encoding_size, padding_idx=0)
         self._createInitialState(1)
 
     def _createInitialState(self, batch_size):
         self.init_state = [None for i in range(self.num_layers * 2)]
         for i in range(2 * self.num_layers):
-            self.init_state[i] = torch.zeros(batch_size, self.rnn_size)
+            self.init_state[i] = torch.zeros(batch_size, self.rnn_size, device=self.device)
         self.num_state = 2 * self.num_layers
     
     def getModulesList(self):
@@ -39,11 +43,12 @@ class layer(nn.Module):
         return params, grad_params
 
     def forward(self, input):
+        print('LanguageModel forward', len(input))
         imgs = input[0]
         seq = input[1] # shape must be (seq_len, batch_size)
         assert(seq.size()[0] == self.seq_length)
         batch_size = seq.size()[1]
-        self.output = torch.zeros(self.seq_length + 2, batch_size, self.vocab_size + 1)
+        self.output = torch.zeros(self.seq_length + 2, batch_size, self.vocab_size + 1, device=self.device)
         self._createInitialState(batch_size)
         self.state = [self.init_state]
         self.inputs = []
@@ -54,7 +59,7 @@ class layer(nn.Module):
             if t == 0:
                 xt = imgs
             elif t == 1:
-                it = torch.zeros(batch_size, dtype=torch.long) + self.vocab_size + 1
+                it = torch.zeros(batch_size, dtype=torch.long, device=self.device) + self.vocab_size + 1
                 self.embedding_inputs.append(it)
                 xt = self.embedding(it)
             else:
@@ -86,14 +91,14 @@ class layer(nn.Module):
         self._createInitialState(batch_size)
 
         state = self.init_state
-        seq = torch.zeros(self.seq_length, batch_size, dtype=torch.long)
-        seqLogprobs = torch.zeros(self.seq_length, batch_size)
-        logprobs = torch.zeros(batch_size, self.rnn_size)
+        seq = torch.zeros(self.seq_length, batch_size, dtype=torch.long, device=self.device)
+        seqLogprobs = torch.zeros(self.seq_length, batch_size, device=self.device)
+        logprobs = torch.zeros(batch_size, self.rnn_size, device=self.device)
         for t in range(self.seq_length + 2):
             if t == 0:
                 xt = imgs
             elif t == 1:
-                it = torch.zeros(batch_size, dtype=torch.long) + self.vocab_size + 1
+                it = torch.zeros(batch_size, dtype=torch.long, device=self.device) + self.vocab_size + 1
                 xt = self.embedding(it)
 
             else:
@@ -136,17 +141,17 @@ class layer(nn.Module):
 
         assert(beam_size <= self.vocab_size + 1)
 
-        seq = torch.zeros(self.seq_length, batch_size, dtype=torch.long)
-        seqLogprobs = torch.FloatTensor(self.seq_length, batch_size)
+        seq = torch.zeros(self.seq_length, batch_size, dtype=torch.long, device=self.device)
+        seqLogprobs = torch.FloatTensor(self.seq_length, batch_size, device=self.device)
 
         for k in range(batch_size):
             self._createInitialState(beam_size)
             state = self.init_state
 
-            beam_seq = torch.zeros(self.seq_length, beam_size, dtype=torch.long)
-            beam_seq_logprobs = torch.zeros(self.seq_length, beam_size)
-            beam_logprobs_sum = torch.zeros(beam_size)
-            logprobs = torch.zeros(beam_size, self.vocab_size + 1)
+            beam_seq = torch.zeros(self.seq_length, beam_size, dtype=torch.long, device=self.device)
+            beam_seq_logprobs = torch.zeros(self.seq_length, beam_size, device=device)
+            beam_logprobs_sum = torch.zeros(beam_size, device=self.device)
+            logprobs = torch.zeros(beam_size, self.vocab_size + 1, device = self.device)
             done_beams = []
 
             for t in range(self.seq_length + 2):
@@ -219,11 +224,21 @@ class layer(nn.Module):
 
 class crit(nn.Module):
     def __init__(self):
+<<<<<<< HEAD
         return super(crit, self).__init__()
 
     def forward(self, input, seq):
         
         self.gradInput = torch.zeros(*input.size())
+=======
+
+        super(crit, self).__init__()
+        self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+    def forward(self, input, seq):
+        
+        self.gradInput = torch.zeros(*input.size(), device=self.device)
+>>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e
         L, N, Mp1 = input.size()
         D = seq.size()[0]
 

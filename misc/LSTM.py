@@ -11,6 +11,7 @@ class LSTM(nn.Module):
         self.soft = nn.LogSoftmax(dim=-1)
         self.n_layers = n_layers
         self.rnn_size = rnn_size
+        self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     def forward(self, inputs):
         '''
@@ -19,8 +20,13 @@ class LSTM(nn.Module):
         inputs[i] : size == (batch_size, rnn_size)
         '''
         input = torch.stack([inputs[0]])
+<<<<<<< HEAD
         h_0 = torch.zeros(self.n_layers, input.size()[1], self.rnn_size)
         c_0 = torch.zeros(self.n_layers, input.size()[1], self.rnn_size)
+=======
+        h_0 = torch.zeros(self.n_layers, input.size()[1], self.rnn_size, device=self.device)
+        c_0 = torch.zeros(self.n_layers, input.size()[1], self.rnn_size, device=self.device)
+>>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e
 
         for i in range(1, 2 * (self.n_layers) + 1):
             if i % 2 == 0:
