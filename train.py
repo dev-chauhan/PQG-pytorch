@@ -66,6 +66,7 @@ args = parser.parse_args()
 torch.manual_seed(args.seed)
 print(args)
 
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 # subprocess.run(['mkdir', '-p', args.save])
 
 # import logging
@@ -121,7 +122,8 @@ class Model(nn.Module):
         self.emb_size = args.input_encoding_size
         self.hidden_size = args.input_encoding_size
         self.att_size = args.att_size
-        
+        self.device = device
+
         self.encoder = DocumentCNN(self.vocab_size + 1, args.txtSize, 0, 1, args.cnn_dim)
         
         self.decoder = LanguageModel(self.input_encoding_size, self.rnn_size, self.seq_length, self.vocab_size, num_layers=self.num_layers, dropout=self.drop_prob_lm)
@@ -130,9 +132,9 @@ class Model(nn.Module):
     
     def JointEmbeddingLoss(self, feature_emb1, feature_emb2):
         batch_size = feature_emb1.size()[0]
-        score = torch.zeros(batch_size, batch_size)
-        grads_text1 = torch.zeros(*feature_emb1.size())
-        grads_text2 = torch.zeros(*feature_emb2.size())
+        score = torch.zeros(batch_size, batch_size, device = self.device)
+        grads_text1 = torch.zeros(*feature_emb1.size(), device = self.device)
+        grads_text2 = torch.zeros(*feature_emb2.size(), device = self.device)
 
         loss = 0
         acc_smooth = 0.0
@@ -165,7 +167,8 @@ class Model(nn.Module):
         return loss / denom, res
 
     def forward(self, input_sentences):
-        input_one_hot = torch.zeros(*input_sentences.size(), self.vocab_size + 1)
+        print('Model forward', input_sentences.size())
+        input_one_hot = torch.zeros(*input_sentences.size(), self.vocab_size + 1, device=self.device)
         for batch in range(input_sentences.size()[0]):
             for idx in range(input_sentences.size()[1]):
                 input_one_hot[batch][idx][input_sentences[batch][idx]] = 1
@@ -174,9 +177,12 @@ class Model(nn.Module):
         probs = self.decoder([encoded, input_sentences_t])
         narrowed = probs[1:self.seq_length + 1]
         # print(narrowed.size())
-        modified_probs = torch.stack([narrowed[:,i,:] for i in range(narrowed.size()[1])])
+        modified_probs = narrowed.permute(1, 0, 2)
+        # modified_probs = torch.stack([narrowed[:,i,:] for i in range(narrowed.size()[1])])
 
-        local_loss = self.crit(probs, input_sentences_t)
+#        local_loss = self.crit(probs, input_sentences_t)
+        print(probs.size(), input_sentences.size())
+        local_loss = nn.CrossEntropyLoss()(probs[1:self.seq_length + 1].permute(1, 2, 0), input_sentences)
 
         encoded_output = self.encoder(modified_probs)
         encoded_input = encoded
@@ -200,16 +206,17 @@ def train_epoch(model, model_optim, device):
 
         input_sentence, _, __ = dataloader.next_batch(args.batch_size, gpuid=args.gpuid)
         input_sentence = input_sentence.to(device)
-
+        print('before size', input_sentence.size())
         local_loss, global_loss, encoded_input = model(input_sentence)
-        print('forward propagation completed...')
+#        print('.',end='')
+        print(local_loss)
+        print(global_loss)
         local_loss.backward(retain_graph=True)
-        print('backward local completed...')
+#        print(',',end='')
         global_loss.backward(retain_graph=True)
-        print('backward global completed...')
-
+#        print('*',end='')
         model_optim.step()
-        print('#',batch, end='')
+        print(batch)
 
     return local_loss, global_loss, encoded_input
 
@@ -218,7 +225,13 @@ model.train()
 
 model_optim = optim.RMSprop(model.parameters()) # for trial using default and no decay of lr
 
-device = torch.device('cpu') if torch.cuda.is_available() else torch.device('cpu')
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+if torch.cuda.device_count() > 1:
+    print('Lets use', torch.cuda.device_count(), 'GPUs')
+#    torch.distributed.init_process_group(backend='nccl')
+#    model = DistributedDataParallel(model)
+    model = nn.DataParallel(model)
 
 model = model.to(device)
 # model_optim = model_optim.to(device)
@@ -228,7 +241,8 @@ n_epoch = args.n_epoch
 for epoch in range(n_epoch):
     
     local_loss, global_loss, encoded_input = train_epoch(model, model_optim, device)
-
-    print(local_loss, global_loss)
+    
+    n_ = ( dataloader.getDataNum(1) // args.batch_size ) * args.batch_size
+    print(local_loss.item() / n_, global_loss.item() / n_)
 
 print('Done !!!')
