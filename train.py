@@ -16,7 +16,7 @@ parser.add_argument('--input_ques_h5',default='data/quora_data_prepro.h5',help='
 parser.add_argument('--input_json',default='data/quora_data_prepro.json',help='path to the json file containing additional info and vocab')
 
 # starting point
-parser.add_argument('--start_from', help='path to a model checkpoint to initialize model weights from. Empty = don\'t')
+parser.add_argument('--start_from', default='pretrained/model_epoch7.t7', help='path to a model checkpoint to initialize model weights from. Empty = don\'t')
 parser.add_argument('--feature_type', default='VGG', help='VGG or Residual')
 
 # # Model settings
@@ -39,6 +39,7 @@ parser.add_argument('--optim_epsilon',type=float, default=1e-8,help='epsilon tha
 parser.add_argument('--max_iters', type=int, default=-1, help='max number of iterations to run for (-1 = run forever)')
 parser.add_argument('--iterPerEpoch', default=1250, type=int)
 parser.add_argument('--drop_prob_lm', type=float, default=0.5, help='strength of drop_prob_lm in the Language Model RNN')
+parser.add_argument('--n_epoch', type=int, default=1, help='number of epochs during training')
 
 # Evaluation/Checkpointing
 
@@ -63,5 +64,169 @@ parser.add_argument('--cnn_dim',type=int, default=512,help='the encoding size of
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
+print(args)
 
-subprocess.run(['mkdir', '-p', args.save])
+# subprocess.run(['mkdir', '-p', args.save])
+
+# import logging
+# formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+
+
+# def setup_logger(name, log_file, level=logging.INFO):
+#     """Function setup as many loggers as you want"""
+
+#     handler = logging.FileHandler(log_file)        
+#     handler.setFormatter(formatter)
+
+#     logger = logging.getLogger(name)
+#     logger.setLevel(level)
+#     logger.addHandler(handler)
+
+#     return logger
+
+# import os
+
+# logger_cmdline = setup_logger('Log_cmdline', os.path.join(args.save, 'Log_cmdline.txt'))
+# logger_cmdline.info(args)
+
+# subprocess.run(['mkdir', '-p', args.checkpoint_dir])
+
+# # from torch.utils.tensorboard import SummaryWriter
+
+# err_log_filename = os.path.join(args.save, 'ErrorProgress')
+# err_log = setup_logger('ErrorProgress' , err_log_filename)
+
+# errT_log_filename = os.path.join(args.save, 'ErrorProgress')
+# errT_log = setup_logger('ErrorTProgress', errT_log_filename)
+
+# lang_stats_filename = os.path.join(args.save, 'language_statstics')
+# lang_stats_log = os.path.join('language_statstics', lang_stats_filename)
+
+from misc.dataloader import Dataloader
+
+dataloader = Dataloader(args.input_json, args.input_ques_h5)
+
+class Model(nn.Module):
+
+    def __init__(self):
+        
+        super(Model, self).__init__()
+        self.vocab_size = dataloader.getVocabSize()
+        self.input_encoding_size = args.input_encoding_size
+        self.rnn_size = args.rnn_size
+        self.num_layers = args.rnn_layers
+        self.drop_prob_lm = args.drop_prob_lm
+        self.seq_length = dataloader.getSeqLength()
+        self.batch_size = args.batch_size
+        self.emb_size = args.input_encoding_size
+        self.hidden_size = args.input_encoding_size
+        self.att_size = args.att_size
+        
+        self.encoder = DocumentCNN(self.vocab_size + 1, args.txtSize, 0, 1, args.cnn_dim)
+        
+        self.decoder = LanguageModel(self.input_encoding_size, self.rnn_size, self.seq_length, self.vocab_size, num_layers=self.num_layers, dropout=self.drop_prob_lm)
+        
+        self.crit = LanguageModelCriterion()
+    
+    def JointEmbeddingLoss(self, feature_emb1, feature_emb2):
+        batch_size = feature_emb1.size()[0]
+        score = torch.zeros(batch_size, batch_size)
+        grads_text1 = torch.zeros(*feature_emb1.size())
+        grads_text2 = torch.zeros(*feature_emb2.size())
+
+        loss = 0
+        acc_smooth = 0.0
+        acc_batch = 0.0
+        
+        for i in range(batch_size):
+            for j in range(batch_size):
+                score[i, j] = torch.dot(feature_emb2[i], feature_emb1[j])
+            
+            label_score = score[i, i]
+            for j in range(batch_size):
+                if i != j :
+                    cur_score = score[i, j]
+                    thresh = cur_score - label_score + 1
+                    if thresh > 0:
+                        loss += thresh
+                        txt_diff = feature_emb1[j] - feature_emb1[i]
+                        grads_text2[i] += txt_diff
+                        grads_text1[j] += feature_emb2[i]
+                        grads_text1[i] -= feature_emb2[i]
+            
+            max_ix = score[i].max(-1)
+            if max_ix[0] == i :
+                acc_batch = acc_batch + 1
+        
+        acc_batch = 100 * (acc_batch / batch_size)
+        denom = batch_size * batch_size
+        res = [grads_text1 / denom, grads_text2 / denom]
+        acc_smooth = 0.99 * acc_smooth + 0.01 * acc_batch
+        return loss / denom, res
+
+    def forward(self, input_sentences):
+        input_one_hot = torch.zeros(*input_sentences.size(), self.vocab_size + 1)
+        for batch in range(input_sentences.size()[0]):
+            for idx in range(input_sentences.size()[1]):
+                input_one_hot[batch][idx][input_sentences[batch][idx]] = 1
+        input_sentences_t = input_sentences.t()
+        encoded = self.encoder(input_one_hot)
+        probs = self.decoder([encoded, input_sentences_t])
+        narrowed = probs[1:self.seq_length + 1]
+        # print(narrowed.size())
+        modified_probs = torch.stack([narrowed[:,i,:] for i in range(narrowed.size()[1])])
+
+        local_loss = self.crit(probs, input_sentences_t)
+
+        encoded_output = self.encoder(modified_probs)
+        encoded_input = encoded
+
+        global_loss, grads = self.JointEmbeddingLoss(encoded_output, encoded_input) # grads are not useful in this later i will modify code
+
+        return (local_loss, global_loss, encoded_input)
+
+    def sample(self, encoded_input):
+        
+        return self.decoder.sample(encoded_input)
+
+model = Model()
+
+def train_epoch(model, model_optim, device):
+    
+    n_batch = dataloader.getDataNum(1) // args.batch_size
+    n_batch = 1
+    for batch in range(n_batch):
+        model_optim.zero_grad()
+
+        input_sentence, _, __ = dataloader.next_batch(args.batch_size, gpuid=args.gpuid)
+        input_sentence = input_sentence.to(device)
+
+        local_loss, global_loss, encoded_input = model(input_sentence)
+
+        local_loss.backward(retain_graph=True)
+        global_loss.backward(retain_graph=True)
+
+        model_optim.step()
+        print('#',batch, end='')
+
+    return local_loss, global_loss, encoded_input
+
+print('Start the training...')
+model.train()
+
+model_optim = optim.RMSprop(model.parameters()) # for trial using default and no decay of lr
+
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+model = model.to(device)
+# model_optim = model_optim.to(device)
+
+n_epoch = args.n_epoch
+
+for epoch in range(n_epoch):
+    
+    local_loss, global_loss, encoded_input = train_epoch(model, model_optim, device)
+
+    print(local_loss, global_loss)
+
+print('Done !!!')

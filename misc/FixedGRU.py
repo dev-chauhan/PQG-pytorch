@@ -9,15 +9,16 @@ class FixedGRU(nn.Module):
         avg : take average of all hidden states or not
         emb_dim : num of features of each word
         '''
-        super().__init__()
+        super(FixedGRU, self).__init__()
         self.layer = nn.GRU(emb_dim, emb_dim)
         self.avg = avg
+        self.nstep = nstep
 
     def forward(self, inputs):
         '''
         inputs : (nstep, batch_size, emb_dim) torch tensor
 
-        out : (1, batch_size, emb_dim) torch tensor
+        out : (batch_size, emb_dim) torch tensor
         '''
         output , h_n = self.layer(inputs)
         if self.avg == True:

@@ -1,6 +1,6 @@
 import h5py
 import json
-import utils
+import misc.utils as utils
 import numpy as np
 import torch
 
@@ -16,7 +16,7 @@ class Dataloader(object):
             self.__dict__[k] = data_dict[k]
         
         self.vocab_size = 0
-        for i, w in self.ix_to_word:
+        for i in self.ix_to_word:
             self.vocab_size += 1
 
         print('DataLoader loading h5 question file:', input_ques_h5_path)

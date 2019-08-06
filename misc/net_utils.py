@@ -1,4 +1,4 @@
-import utils
+import misc.utils as utils
 
 def decode_sequence(ix_to_word, seq):
     D, N = seq.size()[0], seq.size()[1]

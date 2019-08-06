@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
-import utils
-import net_utils
-from LSTM import LSTM
+import misc.utils as utils
+import misc.net_utils as net_utils
+from misc.LSTM import LSTM
 
 class Struct:
     def __init__(self, **entries):
@@ -11,19 +11,20 @@ class Struct:
 class layer(nn.Module):
 
     def __init__(self, input_encoding_size, rnn_size, seq_length, vocab_size, num_layers=1, dropout=0):
-        super().__init__()
+        super(layer, self).__init__()
         self.input_encoding_size = input_encoding_size
         self.rnn_size = rnn_size
         self.seq_length = seq_length
         self.vocab_size = vocab_size
         self.num_layers = num_layers
         self.core = LSTM(input_encoding_size, vocab_size + 1, rnn_size, num_layers, dropout=dropout)
-        self.embedding = nn.Embedding(vocab_size + 1, input_encoding_size)
+	    # 0 is padding token
+	    # vocab_size + 1 is start token
+        self.embedding = nn.Embedding(vocab_size + 2, input_encoding_size, padding_idx=0)
         self._createInitialState(1)
 
     def _createInitialState(self, batch_size):
-        if not self.init_state :
-            self.init_state = [None for i in range(self.num_layers * 2)]
+        self.init_state = [None for i in range(self.num_layers * 2)]
         for i in range(2 * self.num_layers):
             self.init_state[i] = torch.zeros(batch_size, self.rnn_size)
         self.num_state = 2 * self.num_layers
@@ -39,7 +40,7 @@ class layer(nn.Module):
 
     def forward(self, input):
         imgs = input[0]
-        seq = input[1]
+        seq = input[1] # shape must be (seq_len, batch_size)
         assert(seq.size()[0] == self.seq_length)
         batch_size = seq.size()[1]
         self.output = torch.zeros(self.seq_length + 2, batch_size, self.vocab_size + 1)
@@ -53,26 +54,25 @@ class layer(nn.Module):
             if t == 0:
                 xt = imgs
             elif t == 1:
-                it = torch.zeros(batch_size, dtype=torch.long) + self.vocab_size
+                it = torch.zeros(batch_size, dtype=torch.long) + self.vocab_size + 1
                 self.embedding_inputs.append(it)
                 xt = self.embedding(it)
             else:
                 it = seq[t - 2]
                 if torch.sum(it) == 0:
                     can_skip = True
-                # it[torch.eq(it, 0)] = 1 # i need to modify embedding for padding and start token this is done blindly as torch implementation
-
+                
                 if not can_skip:
                     self.embedding_inputs.append(it)
                     xt = self.embedding(it)
                 
             if not can_skip:
                 self.inputs.append([xt, *self.state[t]])
-                out = self.core(self.inputs[t])
-                self.output = out[-1]
+                out = self.core(self.inputs[-1])
+                self.output[t] = out[-1]
                 self.state.append([])
                 for i in range(self.num_state):
-                    state[t+1].append(out[i])
+                    self.state[t+1].append(out[i])
                 self.tmax = t
             
         return self.output
@@ -93,7 +93,7 @@ class layer(nn.Module):
             if t == 0:
                 xt = imgs
             elif t == 1:
-                it = torch.zeros(batch_size, dtype=torch.long) + self.vocab_size
+                it = torch.zeros(batch_size, dtype=torch.long) + self.vocab_size + 1
                 xt = self.embedding(it)
 
             else:
@@ -109,6 +109,8 @@ class layer(nn.Module):
                     it = torch.multinomial(prob_prev, 1)
                     sampleLogprobs = logprobs.gather(-1, it)
                     it = it.view(-1).long()
+		# vocab indexing starts from 1 so have to increase each index by 1
+                it = it + 1
                 xt = self.embedding(it)
             # xt : (batch_size, emb_size)
             # it : (batch_size)
@@ -217,12 +219,12 @@ class layer(nn.Module):
 
 class crit(nn.Module):
     def __init__(self):
-        return super().__init__()
+        return super(crit, self).__init__()
 
     def forward(self, input, seq):
         
         self.gradInput = torch.zeros(*input.size())
-        L, N, Mp1 = *input.size()
+        L, N, Mp1 = input.size()
         D = seq.size()[0]
 
         assert(D == L - 2)
@@ -232,7 +234,7 @@ class crit(nn.Module):
         for b in range(N):
             first_time = True
 
-            for t in range(1, L):
+            for t in range(1, L-1):
                 
                 if t-1 > D:
                     target_index = 0
