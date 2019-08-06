@@ -66,10 +66,7 @@ args = parser.parse_args()
 torch.manual_seed(args.seed)
 print(args)
 
-<<<<<<< HEAD
-=======
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
->>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e
 # subprocess.run(['mkdir', '-p', args.save])
 
 # import logging
@@ -135,15 +132,9 @@ class Model(nn.Module):
     
     def JointEmbeddingLoss(self, feature_emb1, feature_emb2):
         batch_size = feature_emb1.size()[0]
-<<<<<<< HEAD
-        score = torch.zeros(batch_size, batch_size)
-        grads_text1 = torch.zeros(*feature_emb1.size())
-        grads_text2 = torch.zeros(*feature_emb2.size())
-=======
         score = torch.zeros(batch_size, batch_size, device = self.device)
         grads_text1 = torch.zeros(*feature_emb1.size(), device = self.device)
         grads_text2 = torch.zeros(*feature_emb2.size(), device = self.device)
->>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e
 
         loss = 0
         acc_smooth = 0.0
@@ -176,65 +167,32 @@ class Model(nn.Module):
         return loss / denom, res
 
     def forward(self, input_sentences):
-<<<<<<< HEAD
-        input_one_hot = torch.zeros(*input_sentences.size(), self.vocab_size + 1)
-=======
         print('Model forward', input_sentences.size())
         input_one_hot = torch.zeros(*input_sentences.size(), self.vocab_size + 1, device=self.device)
->>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e
         for batch in range(input_sentences.size()[0]):
             for idx in range(input_sentences.size()[1]):
                 input_one_hot[batch][idx][input_sentences[batch][idx]] = 1
         input_sentences_t = input_sentences.t()
         encoded = self.encoder(input_one_hot)
         probs = self.decoder([encoded, input_sentences_t])
-        narrowed = probs[1:self.seq_length + 1]
-        # print(narrowed.size())
-<<<<<<< HEAD
-        modified_probs = torch.stack([narrowed[:,i,:] for i in range(narrowed.size()[1])])
+        # narrowed = probs[1:self.seq_length + 1]
+        # modified_probs = narrowed.permute(1, 0, 2)
 
-        local_loss = self.crit(probs, input_sentences_t)
-=======
-        modified_probs = narrowed.permute(1, 0, 2)
-        # modified_probs = torch.stack([narrowed[:,i,:] for i in range(narrowed.size()[1])])
+        # print(probs.size(), input_sentences.size())
+        # local_loss = nn.CrossEntropyLoss()(probs[1:self.seq_length + 1].permute(1, 2, 0), input_sentences)
 
-#        local_loss = self.crit(probs, input_sentences_t)
-        print(probs.size(), input_sentences.size())
-        local_loss = nn.CrossEntropyLoss()(probs[1:self.seq_length + 1].permute(1, 2, 0), input_sentences)
->>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e
+        # encoded_output = self.encoder(modified_probs)
+        # encoded_input = encoded
 
-        encoded_output = self.encoder(modified_probs)
-        encoded_input = encoded
+        # global_loss, grads = self.JointEmbeddingLoss(encoded_output, encoded_input) # grads are not useful in this later i will modify code
 
-        global_loss, grads = self.JointEmbeddingLoss(encoded_output, encoded_input) # grads are not useful in this later i will modify code
-
-        return (local_loss, global_loss, encoded_input)
+        return (probs, encoded)
 
     def sample(self, encoded_input):
         
         return self.decoder.sample(encoded_input)
 
 model = Model()
-<<<<<<< HEAD
-
-def train_epoch(model, model_optim, device):
-    
-    n_batch = dataloader.getDataNum(1) // args.batch_size
-    n_batch = 1
-    for batch in range(n_batch):
-        model_optim.zero_grad()
-
-        input_sentence, _, __ = dataloader.next_batch(args.batch_size, gpuid=args.gpuid)
-        input_sentence = input_sentence.to(device)
-
-        local_loss, global_loss, encoded_input = model(input_sentence)
-
-        local_loss.backward(retain_graph=True)
-        global_loss.backward(retain_graph=True)
-
-        model_optim.step()
-        print('#',batch, end='')
-=======
 
 def train_epoch(model, model_optim, device):
     
@@ -246,8 +204,16 @@ def train_epoch(model, model_optim, device):
         input_sentence, _, __ = dataloader.next_batch(args.batch_size, gpuid=args.gpuid)
         input_sentence = input_sentence.to(device)
         print('before size', input_sentence.size())
-        local_loss, global_loss, encoded_input = model(input_sentence)
+        probs, encoded_input = model(input_sentence)
 #        print('.',end='')
+        loss = nn.CrossEntropyLoss()
+        
+        local_loss = loss(probs[1:input_sentence.size()[1] + 1].permute(1, 2, 0), input_sentence)
+        
+        encoded_output = model.encoder(probs[1:input_sentence.size()[1] + 1].permute(1, 0, 2))
+        
+        global_loss, _ = model.JointEmbeddingLoss(encoded_output, encoded_input)
+
         print(local_loss)
         print(global_loss)
         local_loss.backward(retain_graph=True)
@@ -256,7 +222,6 @@ def train_epoch(model, model_optim, device):
 #        print('*',end='')
         model_optim.step()
         print(batch)
->>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e
 
     return local_loss, global_loss, encoded_input
 
@@ -267,29 +232,18 @@ model_optim = optim.RMSprop(model.parameters()) # for trial using default and no
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-<<<<<<< HEAD
-=======
 if torch.cuda.device_count() > 1:
     print('Lets use', torch.cuda.device_count(), 'GPUs')
 #    torch.distributed.init_process_group(backend='nccl')
 #    model = DistributedDataParallel(model)
     model = nn.DataParallel(model)
 
->>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e
 model = model.to(device)
 # model_optim = model_optim.to(device)
 
 n_epoch = args.n_epoch
 
 for epoch in range(n_epoch):
-<<<<<<< HEAD
-    
-    local_loss, global_loss, encoded_input = train_epoch(model, model_optim, device)
-
-    print(local_loss, global_loss)
-
-print('Done !!!')
-=======
     
     local_loss, global_loss, encoded_input = train_epoch(model, model_optim, device)
     
@@ -297,4 +251,3 @@ print('Done !!!')
     print(local_loss.item() / n_, global_loss.item() / n_)
 
 print('Done !!!')
->>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e

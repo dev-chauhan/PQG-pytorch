@@ -20,10 +20,7 @@ class layer(nn.Module):
         self.core = LSTM(input_encoding_size, vocab_size + 1, rnn_size, num_layers, dropout=dropout)
 	    # 0 is padding token
 	    # vocab_size + 1 is start token
-<<<<<<< HEAD
-=======
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
->>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e
         self.embedding = nn.Embedding(vocab_size + 2, input_encoding_size, padding_idx=0)
         self._createInitialState(1)
 
@@ -222,23 +219,16 @@ class layer(nn.Module):
         
         return seq, seqLogprobs
 
+
 class crit(nn.Module):
+
     def __init__(self):
-<<<<<<< HEAD
-        return super(crit, self).__init__()
-
-    def forward(self, input, seq):
-        
-        self.gradInput = torch.zeros(*input.size())
-=======
-
         super(crit, self).__init__()
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-
+    
     def forward(self, input, seq):
         
         self.gradInput = torch.zeros(*input.size(), device=self.device)
->>>>>>> e49d4b4f1e639fbb2c302c5d27a0307fe657660e
         L, N, Mp1 = input.size()
         D = seq.size()[0]
 
