@@ -20,6 +20,7 @@ class FixedGRU(nn.Module):
 
         out : (batch_size, emb_dim) torch tensor
         '''
+        self.layer.flatten_parameters()
         output , h_n = self.layer(inputs)
         if self.avg == True:
             out = output[0]

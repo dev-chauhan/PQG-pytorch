@@ -28,7 +28,7 @@ class LSTM(nn.Module):
                 h_0[(i-1)//2,:,:] = inputs[i]
             else:
                 c_0[(i-1)//2,:,:] = inputs[i]
-        
+        self.rnn.flatten_parameters()
         out, (h_n, c_n) = self.rnn(input, (h_0, c_0))
         out = self.dropout_layer(out[0])
         proj = self.dense(out)

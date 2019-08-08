@@ -64,44 +64,9 @@ parser.add_argument('--cnn_dim',type=int, default=512,help='the encoding size of
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
-print(args)
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-# subprocess.run(['mkdir', '-p', args.save])
 
-# import logging
-# formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-
-
-# def setup_logger(name, log_file, level=logging.INFO):
-#     """Function setup as many loggers as you want"""
-
-#     handler = logging.FileHandler(log_file)        
-#     handler.setFormatter(formatter)
-
-#     logger = logging.getLogger(name)
-#     logger.setLevel(level)
-#     logger.addHandler(handler)
-
-#     return logger
-
-# import os
-
-# logger_cmdline = setup_logger('Log_cmdline', os.path.join(args.save, 'Log_cmdline.txt'))
-# logger_cmdline.info(args)
-
-# subprocess.run(['mkdir', '-p', args.checkpoint_dir])
-
-# # from torch.utils.tensorboard import SummaryWriter
-
-# err_log_filename = os.path.join(args.save, 'ErrorProgress')
-# err_log = setup_logger('ErrorProgress' , err_log_filename)
-
-# errT_log_filename = os.path.join(args.save, 'ErrorProgress')
-# errT_log = setup_logger('ErrorTProgress', errT_log_filename)
-
-# lang_stats_filename = os.path.join(args.save, 'language_statstics')
-# lang_stats_log = os.path.join('language_statstics', lang_stats_filename)
 
 from misc.dataloader import Dataloader
 
@@ -214,14 +179,13 @@ def train_epoch(model, model_optim, device):
         
         global_loss, _ = model.JointEmbeddingLoss(encoded_output, encoded_input)
 
-        print(local_loss)
-        print(global_loss)
-        local_loss.backward(retain_graph=True)
-#        print(',',end='')
-        global_loss.backward(retain_graph=True)
-#        print('*',end='')
+        total_loss = local_loss + global_loss
+        total_loss.backward()
         model_optim.step()
-        print(batch)
+
+        seq , _ = model.decoder.sample(encoded_input)
+        sents = net_utils.decode_sequence(dataloader.getVocab(), seq)
+        print(sents)
 
     return local_loss, global_loss, encoded_input
 
@@ -232,14 +196,7 @@ model_optim = optim.RMSprop(model.parameters()) # for trial using default and no
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-if torch.cuda.device_count() > 1:
-    print('Lets use', torch.cuda.device_count(), 'GPUs')
-#    torch.distributed.init_process_group(backend='nccl')
-#    model = DistributedDataParallel(model)
-    model = nn.DataParallel(model)
-
 model = model.to(device)
-# model_optim = model_optim.to(device)
 
 n_epoch = args.n_epoch
 
