@@ -86,6 +86,7 @@ class Dataloader(object):
         return (ques, label, ques_id)
 
     def getVocab(self):
+        self.ix_to_word['0'] = ''
         return self.ix_to_word
 
     def getVocabSize(self):

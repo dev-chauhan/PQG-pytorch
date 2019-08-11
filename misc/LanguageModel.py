@@ -120,7 +120,7 @@ class layer(nn.Module):
                 seq[t-2] = it
                 seqLogprobs[t-2] = sampleLogprobs.view(-1).float()
             
-            inputs = [xt, *self.state]
+            inputs = [xt, *state]
             out = self.core(inputs)
             logprobs = out[-1]
             state = []

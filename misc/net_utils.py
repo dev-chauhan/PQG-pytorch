@@ -7,7 +7,7 @@ def decode_sequence(ix_to_word, seq):
         txt = ''
         for j in range(D):
             ix = seq[j, i]
-            word = ix_to_word[ix]
+            word = ix_to_word[str(ix.item())]
             if not word:
                 break
             if j >= 1:
