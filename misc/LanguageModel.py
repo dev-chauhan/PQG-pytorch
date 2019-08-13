@@ -40,7 +40,7 @@ class layer(nn.Module):
         return params, grad_params
 
     def forward(self, input):
-        print('LanguageModel forward', len(input))
+        
         imgs = input[0]
         seq = input[1] # shape must be (seq_len, batch_size)
         assert(seq.size()[0] == self.seq_length)

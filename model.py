@@ -24,7 +24,7 @@ class Model(nn.Module):
         self.hidden_size = args.input_encoding_size
         self.att_size = args.att_size
         self.device = device
-        self.count = 0
+        
         self.encoder = DocumentCNN(self.vocab_size + 1, args.txtSize, 0, 1, args.cnn_dim)
         
         self.decoder = LanguageModel(self.input_encoding_size, self.rnn_size, self.seq_length, self.vocab_size, num_layers=self.num_layers, dropout=self.drop_prob_lm)
@@ -56,7 +56,7 @@ class Model(nn.Module):
         return loss / denom
 
     def forward(self, input_sentences):
-        print('Model forward', input_sentences.size())
+        
         input_one_hot = torch.zeros(*input_sentences.size(), self.vocab_size + 1, device=self.device)
         for batch in range(input_sentences.size()[0]):
             for idx in range(input_sentences.size()[1]):

@@ -5,3 +5,4 @@ data/quora_data_prepro.h5
 misc/__pycache__/*
 runs/*
 runs
+ignore.txt

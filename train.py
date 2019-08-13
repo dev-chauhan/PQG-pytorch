@@ -9,14 +9,28 @@ from misc.FixedGRU import FixedGRU
 from misc.HybridCNNLong import HybridCNNLong as DocumentCNN
 from model import Model
 from pycocoevalcap.eval import COCOEvalCap
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 import subprocess
 
 # get command line arguments into args
 parser = utils.make_parser()
 args = parser.parse_args()
-writer = SummaryWriter()
+# writer = SummaryWriter()
 torch.manual_seed(args.seed)
+
+import time
+import os
+
+log_folder = 'logs'
+save_folder = 'save'
+folder = time.strftime("%d-%m-%Y_%H:%M:%S")
+
+subprocess.run(['mkdir', os.path.join(log_folder, folder)])
+subprocess.run(['mkdir', os.path.join(save_folder, folder)])
+
+file_scores = os.path.join(log_folder, folder, 'scores.txt')
+file_loss = os.path.join(log_folder, folder, 'loss.txt')
+file_sample = os.path.join(log_folder, folder, 'samples.txt')
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
@@ -41,8 +55,78 @@ def getObjsForScores(real_sents, pred_sents):
 
     return coco(real_sents), coco(pred_sents)
 
+def eval_batch(model, device, epoch, iter):
+    
+    model.eval()
+    
+    input_sentence, _, _ = dataloader.next_batch_eval(50)
+    input_sentence = input_sentence.to(device)
 
-def train_epoch(model, model_optim, device):
+    probs, encoded_input = model(input_sentence)
+    
+    seq , _ = model.decoder.sample(encoded_input)
+    
+    # local loss criterion
+    loss = nn.CrossEntropyLoss()
+
+    # compute local loss
+    local_loss = loss(probs[1:input_sentence.size()[1] + 1].permute(1, 2, 0), input_sentence)
+    
+    # get encoding from 
+    encoded_output = model.encoder(probs[1:input_sentence.size()[1] + 1].permute(1, 0, 2))
+    
+    # compute global loss
+    global_loss = model.JointEmbeddingLoss(encoded_output, encoded_input)
+
+    sents = net_utils.decode_sequence(dataloader.getVocab(), seq)
+    real_sents = net_utils.decode_sequence(dataloader.getVocab(), input_sentence.t())
+
+    coco, cocoRes = getObjsForScores(real_sents, sents)
+
+    evalObj = COCOEvalCap(coco, cocoRes)
+
+    evalObj.evaluate()
+
+    f_score = open(file_scores, 'a')
+    f_score.write(str(epoch) + '-' + str(iter) + '\n')
+    
+    for key in evalObj.eval:
+        f_score.write(key + " : " + str(evalObj.eval[key]) + '\n')
+
+    f_score.write('\n')
+    f_score.close()
+
+    f_loss = open(file_loss, 'a')
+    f_loss.write(str(epoch) + '-' + str(iter) + '\n')
+    f_loss.write('local loss : ' + str(local_loss.item()) + 'global loss : ' + str(global_loss.item()) + 'total loss : ' + str(local_loss.item() + global_loss.item()) + '\n')
+    f_loss.close()
+
+    f_sample = open(file_sample, 'a')
+    
+
+    idx = 1
+    for r, s in zip(real_sents, sents):
+        f_sample.write(str(epoch) + '-' + str(iter) + '\n')
+        f_sample.write(str(idx) + '\nreal : ' + r + '\npred : ' + s + '\n\n')
+    f_sample.close()
+
+def save_model(model, model_optim, epoch, iter, local_loss, global_loss):
+
+    PATH = os.path.join(save_folder, folder, str(epoch) + '_' + str(iter) + '.tar')
+    
+    checkpoint = {
+        'epoch' : epoch,
+        'iter' : iter,
+        'model_state_dict' : model.state_dict(), 
+        'optimizer_state_dict' : model_optim.state_dict(),
+        'local_loss' : local_loss, 
+        'global_loss' : global_loss
+    }
+
+    torch.save(checkpoint, PATH)
+    
+
+def train_epoch(model, model_optim, device, epoch, log_per_iter=100, save_per_iter=100):
     
     n_batch = dataloader.getDataNum(1) // args.batch_size
     n_batch = 3
@@ -52,13 +136,16 @@ def train_epoch(model, model_optim, device):
     den = 0
     
     for batch in range(n_batch):
+        
+        if model.training == False:
+            model.train()
 
         # zero all gradiants
         model_optim.zero_grad()
         
         # get new batch
         input_sentence, _, __ = dataloader.next_batch(args.batch_size, gpuid=args.gpuid)
-        # input_sentence = input_sentence[:5,:]
+        input_sentence = input_sentence[:5,:]
         input_sentence = input_sentence.to(device)
         
         # forward propagation
@@ -88,37 +175,21 @@ def train_epoch(model, model_optim, device):
         # update the parameters
         model_optim.step()
 
-        # get sentence from encodings
-        seq , _ = model.decoder.sample(encoded_input)
-        sents = net_utils.decode_sequence(dataloader.getVocab(), seq)
-        real_sents = net_utils.decode_sequence(dataloader.getVocab(), input_sentence.t())
-        # printing 10 samples
-        for s in sents[:10]:
-            print(s)
-
+        
         # calculating losses
         epoch_local_loss += local_loss
         epoch_global_loss += global_loss
         den += encoded_input.size()[0]
+        
+        if (batch + 1) % log_per_iter == 0:
+            eval_batch(model, device, epoch, batch + 1)
 
-        coco, cocoRes = getObjsForScores(real_sents, sents)
+        if (batch + 1) % save_per_iter == 0:
+            save_model(model, model_optim, epoch, batch + 1, local_loss.item(), global_loss.item())
 
-        evalObj = COCOEvalCap(coco, cocoRes)
-
-        evalObj.evaluate()
-
-        for key in evalObj.eval:
-            print(key, ':', evalObj.eval[key], end=' ')
-            print()
-            writer.add_scalar(key, evalObj.eval[key], model.count)
-
-        writer.add_scalar('Loss', total_loss / encoded_input.size()[0], model.count)
-        model.count += 1
-
-    return epoch_local_loss / den, epoch_global_loss / den, encoded_input
+    return epoch_local_loss, epoch_global_loss, encoded_input
 
 print('Start the training...')
-model.train()
 
 import math
 
@@ -134,8 +205,15 @@ n_epoch = args.n_epoch
 
 for epoch in range(n_epoch):
     
-    local_loss, global_loss, encoded_input = train_epoch(model, model_optim, device)
+    local_loss, global_loss, encoded_input = train_epoch(model, model_optim, device, epoch)
     sheduler.step()
-    print(local_loss.item(), global_loss.item())
+
+    n_batch = dataloader.getDataNum(1) // args.batch_size
+    
+    local_loss = local_loss / n_batch
+    global_loss = global_loss / n_batch
+
+    eval_batch(model, device, epoch + 1, 0)
+    save_model(model, model_optim, epoch + 1, 0, local_loss.item(), global_loss.item())
 
 print('Done !!!')
