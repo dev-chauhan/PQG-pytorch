@@ -55,17 +55,17 @@ class Model(nn.Module):
         
         return loss / denom
 
-    def forward(self, input_sentences):
+    def forward(self, input_sentences, lengths):
         
         input_one_hot = torch.zeros(*input_sentences.size(), self.vocab_size + 1, device=self.device)
         for batch in range(input_sentences.size()[0]):
             for idx in range(input_sentences.size()[1]):
                 input_one_hot[batch][idx][input_sentences[batch][idx]] = 1
-        input_sentences_t = input_sentences.t()
+        
         encoded = self.encoder(input_one_hot)
-        probs = self.decoder([encoded, input_sentences_t])
-
-        return (probs, encoded)
+        probs = self.decoder(encoded, input_sentences, lengths) # (batch_size, seq_len, vocab_len)
+        
+        return (probs, encoded) # (batch_size, seq_len + 1, vocab_size), (batch_size, feat_size)
 
     def sample(self, encoded_input):
         

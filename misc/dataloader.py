@@ -3,10 +3,13 @@ import json
 import misc.utils as utils
 import numpy as np
 import torch
+import torch.nn as nn
 
-class Dataloader(object):
+class Dataloader(nn.Module):
+
     def __init__(self, input_json_file_path, input_ques_h5_path):
         
+        super(Dataloader, self).__init__()
         print('Reading', input_json_file_path)
         
         with open(input_json_file_path) as input_file:
@@ -21,33 +24,33 @@ class Dataloader(object):
 
         print('DataLoader loading h5 question file:', input_ques_h5_path)
         qa_data = h5py.File(input_ques_h5_path, 'r')
-        self.ques_train = qa_data['ques_train'][...].astype(int)
-        self.ques_len_train = qa_data['ques_length_train'][...].astype(int)
-        self.ques_id_train = qa_data['ques_cap_id_train'][...].astype(int)
+        self.ques_train = torch.from_numpy(qa_data['ques_train'][...].astype(int))
+        self.ques_len_train = torch.from_numpy(qa_data['ques_length_train'][...].astype(int))
+        self.ques_id_train = torch.from_numpy(qa_data['ques_cap_id_train'][...].astype(int))
 
-        self.label_train = qa_data['ques1_train'][...].astype(int)
-        self.label_len_train = qa_data['ques1_length_train'][...].astype(int)
+        self.label_train = torch.from_numpy(qa_data['ques1_train'][...].astype(int))
+        self.label_len_train = torch.from_numpy(qa_data['ques1_length_train'][...].astype(int))
 
         self.train_id = 0
-        self.seq_length = self.ques_train.shape[1]
+        self.seq_length = self.ques_train.size()[1]
 
-        print('self.ques_train.shape[0]', self.ques_train.shape[0])
+        print('self.ques_train.shape[0]', self.ques_train.size()[0])
 
-        self.ques_test = qa_data['ques_test'][...].astype(int)
-        self.ques_len_test = qa_data['ques_length_test'][...].astype(int)
-        self.ques_id_test = qa_data['ques_cap_id_test'][...].astype(int)
+        self.ques_test = torch.from_numpy(qa_data['ques_test'][...].astype(int))
+        self.ques_len_test = torch.from_numpy(qa_data['ques_length_test'][...].astype(int))
+        self.ques_id_test = torch.from_numpy(qa_data['ques_cap_id_test'][...].astype(int))
 
-        self.label_test = qa_data['ques1_test'][...].astype(int)
-        self.label_len_test = qa_data['ques1_length_test'][...].astype(int)
+        self.label_test = torch.from_numpy(qa_data['ques1_test'][...].astype(int))
+        self.label_len_test = torch.from_numpy(qa_data['ques1_length_test'][...].astype(int))
 
         self.test_id = 0
 
-        print('self.ques_test.shape[0]', self.ques_test.shape[0])
+        print('self.ques_test.shape[0]', self.ques_test.size()[0])
         qa_data.close()
 
     def next_batch(self, batch_size, gpuid=-1):
         start_id = self.train_id
-        if start_id + batch_size <= self.ques_train.shape[0]:
+        if start_id + batch_size <= self.ques_train.size()[0]:
             end_id = start_id + batch_size
         else:
             print('end of epoch')
@@ -55,35 +58,38 @@ class Dataloader(object):
             start_id = self.train_id
             end_id = start_id + batch_size
         
-        ques = torch.from_numpy(self.ques_train[start_id:end_id])
-        label = torch.from_numpy(self.label_train[start_id:end_id])
-        ques_id = torch.from_numpy(self.ques_id_train[start_id:end_id])
-        
+        ques = self.ques_train[start_id:end_id]
+        label = self.label_train[start_id:end_id]
+        ques_id = self.ques_id_train[start_id:end_id]
+        ques_len = self.ques_len_train[start_id: end_id]
+
         if gpuid >= 0 :
             device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
             ques = ques.to(device)
             label = label.to(device)
             ques_id = ques_id.to(device)
+            ques_len = ques_len.to(device)
 
         self.train_id += end_id - start_id
-        return (ques, label, ques_id)
+        return (ques, label, ques_id, ques_len)
 
     def next_batch_eval(self, batch_size, gpuid=-1):
         start_id = self.test_id
-        end_id = min(start_id + batch_size, self.ques_test.shape[0])
+        end_id = min(start_id + batch_size, self.ques_test.size()[0])
 
-        ques = torch.from_numpy(self.ques_test[start_id:end_id])
-        label = torch.from_numpy(self.label_test[start_id:end_id])
-        ques_id = torch.from_numpy(self.ques_id_test[start_id:end_id])
-        
+        ques = self.ques_test[start_id:end_id]
+        label = self.label_test[start_id:end_id]
+        ques_id = self.ques_id_test[start_id:end_id]
+        ques_len = self.ques_len_test[start_id: end_id]
         if gpuid >= 0 :
             device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
             ques = ques.to(device)
             label = label.to(device)
             ques_id = ques_id.to(device)
+            ques_len = ques_len.to(device)
 
         self.test_id += end_id - start_id
-        return (ques, label, ques_id)
+        return (ques, label, ques_id, ques_len)
 
     def getVocab(self):
         self.ix_to_word['0'] = ''
@@ -100,10 +106,10 @@ class Dataloader(object):
         
     def getDataNum(self, split):
         if split == 1:
-            return self.ques_train.shape[0]
+            return self.ques_train.size()[0]
 
         if split == 2:
-            return self.ques_test.shape[0]
+            return self.ques_test.size()[0]
 
     def getSeqLength(self):
         return self.seq_length

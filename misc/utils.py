@@ -71,7 +71,7 @@ def make_parser():
     parser.add_argument('--input_json',default='data/quora_data_prepro.json',help='path to the json file containing additional info and vocab')
 
     # starting point
-    parser.add_argument('--start_from', default='pretrained/model_epoch7.t7', help='path to a model checkpoint to initialize model weights from. Empty = don\'t')
+    parser.add_argument('--start_from', default='None', help='path to a model checkpoint to initialize model weights from. Empty = don\'t')
     parser.add_argument('--feature_type', default='VGG', help='VGG or Residual')
 
     # # Model settings

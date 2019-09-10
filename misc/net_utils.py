@@ -7,7 +7,11 @@ def decode_sequence(ix_to_word, seq):
         txt = ''
         for j in range(D):
             ix = seq[j, i]
-            word = ix_to_word[str(ix.item())]
+            if str(ix.item()) not in ix_to_word:
+                print("UNK token ", str(ix.item()))
+                word = ix_to_word['0']
+            else:
+                word = ix_to_word[str(ix.item())]
             if not word:
                 break
             if j >= 1:

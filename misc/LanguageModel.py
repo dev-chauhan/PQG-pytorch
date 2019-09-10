@@ -39,95 +39,57 @@ class layer(nn.Module):
 
         return params, grad_params
 
-    def forward(self, input):
+    def forward(self, encoded, seq, lengths,teacher_forcing=True):
+        '''
+        encoded : (batch_size, feat_size)
+        seq: (batch_size, seq_len)
+        lengths: (batch_size, )
+        '''
         
-        imgs = input[0]
-        seq = input[1] # shape must be (seq_len, batch_size)
-        assert(seq.size()[0] == self.seq_length)
-        batch_size = seq.size()[1]
-        self.output = torch.zeros(self.seq_length + 2, batch_size, self.vocab_size + 1, device=self.device)
-        self._createInitialState(batch_size)
-        self.state = [self.init_state]
-        self.inputs = []
-        self.embedding_inputs = []
-        self.tmax = 0
-        for t in range(2 + self.seq_length):
-            can_skip = False
-            if t == 0:
-                xt = imgs
-            elif t == 1:
-                it = torch.zeros(batch_size, dtype=torch.long, device=self.device) + self.vocab_size + 1
-                self.embedding_inputs.append(it)
-                xt = self.embedding(it)
-            else:
-                it = seq[t - 2]
-                if torch.sum(it) == 0:
-                    can_skip = True
+        if teacher_forcing:
+            embedded = self.embedding(seq)
+            input_rnn = torch.cat([encoded.unsqueeze(1), embedded], dim=1)
+            lengths = lengths + 1
+            output, _ = self.core(input_rnn, lengths)
+            return output
+        else:
+            print('Sampling...')
+            output = torch.zeros(encoded.size()[0], self.seq_length, device=self.device)
+            for batch in range(encoded.size()[0]):
                 
-                if not can_skip:
-                    self.embedding_inputs.append(it)
-                    xt = self.embedding(it)
+                encoding = encoded[batch]
+                encoding = encoding.unsqueeze(0)
+                encoding = encoding.unsqueeze(1)
                 
-            if not can_skip:
-                self.inputs.append([xt, *self.state[t]])
-                out = self.core(self.inputs[-1])
-                self.output[t] = out[-1]
-                self.state.append([])
-                for i in range(self.num_state):
-                    self.state[t+1].append(out[i])
-                self.tmax = t
-            
-        return self.output
+                idx = 0
+                it = 0
+                h = None
+                while True:
+                    if idx >= self.seq_length or it == self.vocab_size + 1:
+                        break
+                    if h != None:
+                        prob, hidden = self.core(encoding, torch.tensor([1]), h=hidden[-1])
+                    else:
+                        prob, hidden = self.core(encoding, torch.tensor([1]))
+                    prob = prob.view(1, -1)
+                    prob_dist = torch.exp(prob)
+                    it = torch.multinomial(prob_dist, 1)
+                    encoding = self.embedding(it + 1)
+                    
+                    output[batch, idx] = it + 1
+                    idx += 1
+
+            return output.t()
+        
 
     def sample(self, imgs, sample_max=1, beam_size=1, temperature=1.0):
 
         if sample_max == 1 and beam_size > 1 :
             return self.beam_search(imgs, beam_size)
-
-        batch_size = imgs.size()[0]
-        self._createInitialState(batch_size)
-
-        state = self.init_state
-        seq = torch.zeros(self.seq_length, batch_size, dtype=torch.long, device=self.device)
-        seqLogprobs = torch.zeros(self.seq_length, batch_size, device=self.device)
-        logprobs = torch.zeros(batch_size, self.rnn_size, device=self.device)
-        for t in range(self.seq_length + 2):
-            if t == 0:
-                xt = imgs
-            elif t == 1:
-                it = torch.zeros(batch_size, dtype=torch.long, device=self.device) + self.vocab_size + 1
-                xt = self.embedding(it)
-
-            else:
-                if sample_max == 1:
-                    sampleLogprobs, it = torch.max(logprobs, -1)
-                    it = it.view(-1).long()
-                else:
-                    if temperature == 1.0 :
-                        prob_prev = torch.exp(logprobs)
-                    else:
-                        prob_prev = torch.exp(torch.div(logprobs, temperature))
-                    
-                    it = torch.multinomial(prob_prev, 1)
-                    sampleLogprobs = logprobs.gather(-1, it)
-                    it = it.view(-1).long()
-		# vocab indexing starts from 1 so have to increase each index by 1
-                it = it + 1
-                xt = self.embedding(it)
-            # xt : (batch_size, emb_size)
-            # it : (batch_size)
-            if t >= 2:
-                seq[t-2] = it
-                seqLogprobs[t-2] = sampleLogprobs.view(-1).float()
-            
-            inputs = [xt, *state]
-            out = self.core(inputs)
-            logprobs = out[-1]
-            state = []
-            for i in range(self.num_state) :
-                state.append(out[i])
         
-        return seq, seqLogprobs
+        seq = self.forward(imgs, None, torch.tensor([1]), teacher_forcing=False)
+        
+        return seq
     
     def beam_search(self, imgs, beam_size=10):
 
