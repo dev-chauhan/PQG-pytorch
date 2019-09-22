@@ -1,0 +1,3 @@
+[submodule "pycocoevalcap"]
+	path = pycocoevalcap
+	url = https://github.com/salaniz/pycocoevalcap.git
