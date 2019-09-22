@@ -20,23 +20,24 @@ class LSTM(nn.Module):
         lengths: (batch_size, )
         '''
         batch_size = input_batch.size()[0]
-        seq_len = input_batch.size()[1] - 1
-        out_lstm = torch.zeros(batch_size, seq_len + 1, self.rnn_size, device=self.device)
-        hidden = []
-        for batch in range(batch_size):
-            seq = input_batch[batch].unsqueeze(0)
+        seq_len = input_batch.size()[1]
+        out_lstm = torch.zeros(batch_size, seq_len , self.rnn_size, device=self.device)
+        # for batch in range(batch_size):
+        #     seq = input_batch[batch].unsqueeze(0)
             
-            if h:
+        #     if h:
                 
-                out1, h = self.rnn(seq[:,:lengths[batch],:], h)
-            else:
-                out1, h = self.rnn(seq[:,:lengths[batch],:])
-            # print(out1.size())
-            out_lstm[batch, : lengths[batch], :] = out1[:,:,:]
-            hidden.append(h)
-        
-        out = self.dropout_layer(out_lstm)
-        proj = self.dense(out)
-        logsoft = self.soft(proj)
+        #         out1, h = self.rnn(seq[:,:lengths[batch],:], h)
+        #     else:
+        #         out1, h = self.rnn(seq[:,:lengths[batch],:])
+        #     # print(out1.size())
+        #     out_lstm[batch, : lengths[batch], :] = out1[:,:,:]
+        #     hidden.append(h)
+        if h:
+            out_lstm, hidden = self.rnn(input_batch, h)
+        else :
+            out_lstm, hidden = self.rnn(input_batch)
+
+        logsoft = self.soft(self.dense(self.dropout_layer(out_lstm)))
 
         return logsoft, hidden # (batch_size, seq_len + 1, vocab_size), list(batch_size)

@@ -1,19 +1,18 @@
 import misc.utils as utils
 
 def decode_sequence(ix_to_word, seq):
-    D, N = seq.size()[0], seq.size()[1]
+    N, D = seq.size()[0], seq.size()[1]
     out = []
     for i in range(N):
         txt = ''
         for j in range(D):
-            ix = seq[j, i]
-            if str(ix.item()) not in ix_to_word:
+            ix = seq[i, j]
+            if int(ix.item()) not in ix_to_word:
                 print("UNK token ", str(ix.item()))
-                word = ix_to_word['0']
+                word = ix_to_word[len(ix_to_word) - 1]
             else:
-                word = ix_to_word[str(ix.item())]
-            if not word:
-                break
+                word = ix_to_word[int(ix.item())]
+            
             if j >= 1:
                 txt = txt + ' '
             txt = txt + word

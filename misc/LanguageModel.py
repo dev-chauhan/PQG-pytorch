@@ -17,11 +17,11 @@ class layer(nn.Module):
         self.seq_length = seq_length
         self.vocab_size = vocab_size
         self.num_layers = num_layers
-        self.core = LSTM(input_encoding_size, vocab_size + 1, rnn_size, num_layers, dropout=dropout)
+        self.core = LSTM(input_encoding_size, vocab_size , rnn_size, num_layers, dropout=dropout)
 	    # 0 is padding token
 	    # vocab_size + 1 is start token
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-        self.embedding = nn.Embedding(vocab_size + 2, input_encoding_size, padding_idx=0)
+        self.embedding = nn.Embedding(vocab_size , input_encoding_size)
         self._createInitialState(1)
 
     def _createInitialState(self, batch_size):
@@ -47,13 +47,15 @@ class layer(nn.Module):
         '''
         
         if teacher_forcing:
+            
             embedded = self.embedding(seq)
-            input_rnn = torch.cat([encoded.unsqueeze(1), embedded], dim=1)
-            lengths = lengths + 1
+            input_rnn = torch.cat([encoded.unsqueeze(1), embedded[:,:-1]], dim=1)
+            
+            lengths = lengths
             output, _ = self.core(input_rnn, lengths)
             return output
         else:
-            print('Sampling...')
+
             output = torch.zeros(encoded.size()[0], self.seq_length, device=self.device)
             for batch in range(encoded.size()[0]):
                 
@@ -62,32 +64,32 @@ class layer(nn.Module):
                 encoding = encoding.unsqueeze(1)
                 
                 idx = 0
-                it = 0
+                it = -1
                 h = None
                 while True:
-                    if idx >= self.seq_length or it == self.vocab_size + 1:
+                    if idx >= self.seq_length or it == self.vocab_size-2:
                         break
                     if h != None:
-                        prob, hidden = self.core(encoding, torch.tensor([1]), h=hidden[-1])
+                        prob, h = self.core(encoding, torch.tensor([1]), h=h)
                     else:
-                        prob, hidden = self.core(encoding, torch.tensor([1]))
+                        prob, h = self.core(encoding, torch.tensor([1]))
                     prob = prob.view(1, -1)
                     prob_dist = torch.exp(prob)
                     it = torch.multinomial(prob_dist, 1)
-                    encoding = self.embedding(it + 1)
+                    encoding = self.embedding(it)
                     
-                    output[batch, idx] = it + 1
+                    output[batch, idx] = it
                     idx += 1
 
-            return output.t()
+            return output # [batch_size, seq_len]
         
 
-    def sample(self, imgs, sample_max=1, beam_size=1, temperature=1.0):
+    def sample(self, encoding, sample_max=1, beam_size=1, temperature=1.0):
 
         if sample_max == 1 and beam_size > 1 :
-            return self.beam_search(imgs, beam_size)
+            return self.beam_search(encoding, beam_size)
         
-        seq = self.forward(imgs, None, torch.tensor([1]), teacher_forcing=False)
+        seq = self.forward(encoding, None, torch.tensor([1]), teacher_forcing=False)
         
         return seq
     
@@ -180,44 +182,3 @@ class layer(nn.Module):
             seqLogprobs[:,k] = done_beams[0].logps
         
         return seq, seqLogprobs
-
-
-class crit(nn.Module):
-
-    def __init__(self):
-        super(crit, self).__init__()
-        self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    
-    def forward(self, input, seq):
-        
-        self.gradInput = torch.zeros(*input.size(), device=self.device)
-        L, N, Mp1 = input.size()
-        D = seq.size()[0]
-
-        assert(D == L - 2)
-
-        loss = 0
-        n = 0
-        for b in range(N):
-            first_time = True
-
-            for t in range(1, L-1):
-                
-                if t-1 > D:
-                    target_index = 0
-                else:
-                    target_index = seq[t-1, b]
-
-                if target_index == 0 and first_time:
-                    target_index = Mp1 - 1
-                    first_time = False
-
-                if target_index != 0 :
-                    loss -= input[t, b, target_index]
-                    self.gradInput[t, b, target_index] = -1
-                    n += 1
-                
-        self.output = loss / n
-        self.gradInput = self.gradInput / n
-        return self.output
-    

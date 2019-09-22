@@ -4,8 +4,9 @@ import misc.utils as utils
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.utils.data as data
 
-class Dataloader(nn.Module):
+class Dataloader(data.Dataset):
 
     def __init__(self, input_json_file_path, input_ques_h5_path):
         
@@ -15,101 +16,84 @@ class Dataloader(nn.Module):
         with open(input_json_file_path) as input_file:
             data_dict = json.load(input_file)
         
-        for k in data_dict:
-            self.__dict__[k] = data_dict[k]
+        self.ix_to_word = {}
         
-        self.vocab_size = 0
-        for i in self.ix_to_word:
-            self.vocab_size += 1
-
+        for k in data_dict['ix_to_word']:
+            self.ix_to_word[int(k)] = data_dict['ix_to_word'][k]
+        
+        self.ix_to_word[0] = '<UNK>'
+        self.ix_to_word[len(data_dict['ix_to_word'])] = '<EOS>'
+        self.ix_to_word[len(data_dict['ix_to_word'])+1] = '<PAD>'
+        self.EOS_token = len(data_dict['ix_to_word'])
+        self.UNK_token = 0
+        self.PAD_token = len(data_dict['ix_to_word']) + 1
+        self.vocab_size = len(self.ix_to_word)
         print('DataLoader loading h5 question file:', input_ques_h5_path)
         qa_data = h5py.File(input_ques_h5_path, 'r')
-        self.ques_train = torch.from_numpy(qa_data['ques_train'][...].astype(int))
-        self.ques_len_train = torch.from_numpy(qa_data['ques_length_train'][...].astype(int))
-        self.ques_id_train = torch.from_numpy(qa_data['ques_cap_id_train'][...].astype(int))
-
-        self.label_train = torch.from_numpy(qa_data['ques1_train'][...].astype(int))
-        self.label_len_train = torch.from_numpy(qa_data['ques1_length_train'][...].astype(int))
+        
+        ques_id_train = torch.from_numpy(qa_data['ques_cap_id_train'][...].astype(int))
+        
+        ques_train, ques_len_train = self.process_data(torch.from_numpy(qa_data['ques_train'][...].astype(int)), torch.from_numpy(qa_data['ques_length_train'][...].astype(int)))
+        
+        label_train, label_len_train = self.process_data(torch.from_numpy(qa_data['ques1_train'][...].astype(int)), torch.from_numpy(qa_data['ques1_length_train'][...].astype(int)))
 
         self.train_id = 0
-        self.seq_length = self.ques_train.size()[1]
+        self.seq_length = ques_train.size()[1]
 
-        print('self.ques_train.shape[0]', self.ques_train.size()[0])
+        print('self.ques_train.shape[0]', ques_train.size()[0])
 
-        self.ques_test = torch.from_numpy(qa_data['ques_test'][...].astype(int))
-        self.ques_len_test = torch.from_numpy(qa_data['ques_length_test'][...].astype(int))
-        self.ques_id_test = torch.from_numpy(qa_data['ques_cap_id_test'][...].astype(int))
 
-        self.label_test = torch.from_numpy(qa_data['ques1_test'][...].astype(int))
-        self.label_len_test = torch.from_numpy(qa_data['ques1_length_test'][...].astype(int))
+        ques_test, ques_len_test = self.process_data(torch.from_numpy(qa_data['ques_test'][...].astype(int)), torch.from_numpy(qa_data['ques_length_test'][...].astype(int)))
+        
+        label_test, label_len_test = self.process_data(torch.from_numpy(qa_data['ques1_test'][...].astype(int)), torch.from_numpy(qa_data['ques1_length_test'][...].astype(int)))
+
+        ques_id_test = torch.from_numpy(qa_data['ques_cap_id_test'][...].astype(int))
 
         self.test_id = 0
 
-        print('self.ques_test.shape[0]', self.ques_test.size()[0])
+        print('self.ques_test.shape[0]', ques_test.size()[0])
         qa_data.close()
 
-    def next_batch(self, batch_size, gpuid=-1):
-        start_id = self.train_id
-        if start_id + batch_size <= self.ques_train.size()[0]:
-            end_id = start_id + batch_size
-        else:
-            print('end of epoch')
-            self.train_id = 0
-            start_id = self.train_id
-            end_id = start_id + batch_size
-        
-        ques = self.ques_train[start_id:end_id]
-        label = self.label_train[start_id:end_id]
-        ques_id = self.ques_id_train[start_id:end_id]
-        ques_len = self.ques_len_train[start_id: end_id]
+        self.ques = torch.cat([ques_train, ques_test])
+        self.len = torch.cat([ques_len_train, ques_len_test])
+        self.label = torch.cat([label_train, label_test])
+        self.label_len = torch.cat([label_len_train, label_len_test])
+        self.id = torch.cat([ques_id_train, ques_id_test])
 
-        if gpuid >= 0 :
-            device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-            ques = ques.to(device)
-            label = label.to(device)
-            ques_id = ques_id.to(device)
-            ques_len = ques_len.to(device)
+    def process_data(self, data, data_len):
+        N = data.size()[0]
+        new_data = torch.zeros(N, data.size()[1] + 1, dtype=torch.long) + self.PAD_token
+        for i in range(N):
+            new_data[i, :data_len[i]] = data[i, :data_len[i]]
+            new_data[i, data_len[i]] = self.EOS_token
+            data_len[i] += 1
+        return new_data, data_len
+    
+    def __len__(self):
+        return self.len.size()[0]
 
-        self.train_id += end_id - start_id
-        return (ques, label, ques_id, ques_len)
+    def __getitem__(self, idx):
+        return (self.ques[idx], self.len[idx], self.label[idx], self.label_len[idx], self.id[idx])
 
-    def next_batch_eval(self, batch_size, gpuid=-1):
-        start_id = self.test_id
-        end_id = min(start_id + batch_size, self.ques_test.size()[0])
-
-        ques = self.ques_test[start_id:end_id]
-        label = self.label_test[start_id:end_id]
-        ques_id = self.ques_id_test[start_id:end_id]
-        ques_len = self.ques_len_test[start_id: end_id]
-        if gpuid >= 0 :
-            device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-            ques = ques.to(device)
-            label = label.to(device)
-            ques_id = ques_id.to(device)
-            ques_len = ques_len.to(device)
-
-        self.test_id += end_id - start_id
-        return (ques, label, ques_id, ques_len)
-
-    def getVocab(self):
-        self.ix_to_word['0'] = ''
-        return self.ix_to_word
+    # def getVocab(self):
+    #     self.ix_to_word['0'] = ''
+    #     return self.ix_to_word
 
     def getVocabSize(self):
         return self.vocab_size
 
-    def resetIterator(self, split):
-        if split == 1 :
-            self.train_id = 0
-        if split == 2 :
-            self.test_id = 0
+    # def resetIterator(self, split):
+    #     if split == 1 :
+    #         self.train_id = 0
+    #     if split == 2 :
+    #         self.test_id = 0
         
     def getDataNum(self, split):
         if split == 1:
-            return self.ques_train.size()[0]
+            return 100000
 
         if split == 2:
-            return self.ques_test.size()[0]
+            return 30000
 
     def getSeqLength(self):
         return self.seq_length
