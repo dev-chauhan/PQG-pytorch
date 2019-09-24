@@ -81,6 +81,8 @@ def make_parser():
     parser.add_argument('--att_size', type=int, default=512, help='size of sttention vector which refer to k in paper')
     parser.add_argument('--emb_size',type=int, default=512, help='the size after embeeding from onehot')
     parser.add_argument('--rnn_layers',type=int, default=1, help='number of the rnn layer')
+    parser.add_argument('--train_dataset_len', type=int, default=100000, help='length of train dataset')
+    parser.add_argument('--val_dataset_len', type=int, default=30000, help='length of validation dataset')
 
     # Optimization
     parser.add_argument('--optim',default='rmsprop',help='what update to use? rmsprop|sgd|sgdmom|adagrad|adam')
@@ -103,7 +105,7 @@ def make_parser():
     parser.add_argument('--language_eval', type=int, default=1, help='Evaluate language as well (1 = yes, 0 = no)? BLEU/CIDEr/METEOR/ROUGE_L? requires coco-caption code from Github.')
     parser.add_argument('--val_images_use', type=int, default=24800, help='how many images to use when periodically evaluating the validation loss? (-1 = all)')
     parser.add_argument('--save_checkpoint_every', type=int, default=2500, help='how often to save a model checkpoint?')
-    parser.add_argument('--losses_log_every', type=int , default=200, help='How often do we snapshot losses, for inclusion in the progress dump? (0 = disable)')
+    parser.add_argument('--log_every', type=int , default=100, help='How often do we snapshot losses, for inclusion in the progress dump? (0 = disable)')
 
     # misc
     parser.add_argument('--backend', default='cudnn', help='nn|cudnn')

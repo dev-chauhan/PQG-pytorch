@@ -21,7 +21,10 @@ class Dataloader(data.Dataset):
         for k in data_dict['ix_to_word']:
             self.ix_to_word[int(k)] = data_dict['ix_to_word'][k]
         
-        self.ix_to_word[0] = '<UNK>'
+        if 0 not in self.ix_to_word:
+            self.ix_to_word[0] = '<UNK>'
+        else : 
+            raise Exception
         self.ix_to_word[len(data_dict['ix_to_word'])] = '<EOS>'
         self.ix_to_word[len(data_dict['ix_to_word'])+1] = '<PAD>'
         self.EOS_token = len(data_dict['ix_to_word'])

@@ -8,3 +8,9 @@ runs
 ignore.txt
 .vscode
 .vscode/*
+logs
+logs/*
+save
+save/*
+samples
+samples/*

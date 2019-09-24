@@ -38,7 +38,7 @@ class Model(nn.Module):
             label_score = torch.dot(feature_emb1[i], feature_emb2[i])
             for j in range(batch_size):
                 cur_score = torch.dot(feature_emb2[i], feature_emb1[j])
-                score = cur_score - label_score + 1;
+                score = cur_score - label_score + 1
                 if 0 < score.item():
                     loss += max(0, cur_score - label_score + 1)
 

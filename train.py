@@ -8,13 +8,13 @@ from misc.FixedGRU import FixedGRU
 from misc.HybridCNNLong import HybridCNNLong as DocumentCNN
 from model import Model
 from pycocoevalcap.eval import COCOEvalCap
-# from torch.utils.tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 import subprocess
 import torch.utils.data as Data
 # get command line arguments into args
 parser = utils.make_parser()
 args = parser.parse_args()
-# writer = SummaryWriter()
+
 torch.manual_seed(args.seed)
 
 import time
@@ -27,12 +27,16 @@ folder = time.strftime("%d-%m-%Y_%H:%M:%S")
 if args.start_from != 'None':
     folder = args.start_from.split('/')[-2]
 
-subprocess.run(['mkdir', os.path.join(log_folder, folder)])
-subprocess.run(['mkdir', os.path.join(save_folder, folder)])
+writer_train = SummaryWriter(os.path.join(log_folder, 'train'))
+writer_val = SummaryWriter(os.path.join(log_folder, 'val'))
+writer_score = SummaryWriter(os.path.join(log_folder, 'score'))
 
-file_scores = os.path.join(log_folder, folder, 'scores.txt')
-file_loss = os.path.join(log_folder, folder, 'loss.txt')
-file_sample = os.path.join(log_folder, folder, 'samples.txt')
+subprocess.run(['mkdir', os.path.join(save_folder, folder)])
+subprocess.run(['mkdir', os.path.join('samples', folder)])
+
+# file_scores = os.path.join(log_folder, folder, 'scores.txt')
+# file_loss = os.path.join(log_folder, folder, 'loss.txt')
+file_sample = os.path.join('samples', folder, 'samples')
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
@@ -41,12 +45,12 @@ from misc.dataloader import Dataloader
 # get dataloader
 data = Dataloader(args.input_json, args.input_ques_h5)
 
-train_loader = Data.DataLoader(Data.Subset(data, range(100000)), batch_size = args.batch_size, shuffle=True)
-test_loader = Data.DataLoader(Data.Subset(data, range(100000, 130000)), batch_size = args.batch_size, shuffle=True)
+train_loader = Data.DataLoader(Data.Subset(data, range(args.train_dataset_len)), batch_size = args.batch_size, shuffle=True)
+test_loader = Data.DataLoader(Data.Subset(data, range(args.train_dataset_len, args.train_dataset_len + args.val_dataset_len)), batch_size = args.batch_size, shuffle=True)
 test_loader_iter = iter(test_loader)
 # make model
 model = Model(args, data)
-
+iter_per_epoch = (args.train_dataset_len + args.batch_size - 1)/ args.batch_size
 
 def getObjsForScores(real_sents, pred_sents):
     class coco:
@@ -61,7 +65,7 @@ def getObjsForScores(real_sents, pred_sents):
 
     return coco(real_sents), coco(pred_sents)
 
-def eval_batch(model, device, epoch, iter):
+def eval_batch(model, device, epoch, it):
     
     model.eval()
     
@@ -98,39 +102,31 @@ def eval_batch(model, device, epoch, iter):
 
         evalObj.evaluate()
 
-        f_score = open(file_scores, 'a')
-        f_score.write(str(epoch) + '-' + str(iter) + '\n')
-
         for key in evalObj.eval:
-            f_score.write(key + ' : ' + str(evalObj.eval[key]) + '\n')
+            writer_score.add_scalar(key, evalObj.eval[key], epoch * iter_per_epoch + it)
 
-        f_score.write('\n')
-        f_score.close()
+        writer_val.add_scalar('local_loss', local_loss.item(), epoch * iter_per_epoch + it)
+        writer_val.add_scalar('global_loss', global_loss.item(), epoch * iter_per_epoch + it)
+        writer_val.add_scalar('total_loss', local_loss.item() + global_loss.item(), epoch * iter_per_epoch + it)
 
-        f_loss = open(file_loss, 'a')
-        f_loss.write(str(epoch) + '-' + str(iter) + '\n')
-        f_loss.write('local loss : ' + str(local_loss.item()) + 'global loss : ' + str(global_loss.item()) + 'total loss : ' + str(local_loss.item() + global_loss.item()) + '\n')
-        f_loss.close()
-
-        f_sample = open(file_sample, 'a')
+        f_sample = open(file_sample + str(epoch) + '_' + str(it) + '.txt', 'w')
         
         idx = 1
         for r, s in zip(real_sents, sents):
 
-            f_sample.write(str(epoch) + '-' + str(iter) + '\n')
             f_sample.write(str(idx) + '\nreal : ' + r + '\npred : ' + s + '\n\n')
             idx += 1
 
         f_sample.close()
         torch.cuda.empty_cache()
 
-def save_model(model, model_optim, epoch, iter, local_loss, global_loss):
+def save_model(model, model_optim, epoch, it, local_loss, global_loss):
 
-    PATH = os.path.join(save_folder, folder, str(epoch) + '_' + str(iter) + '.tar')
+    PATH = os.path.join(save_folder, folder, str(epoch) + '_' + str(it) + '.tar')
     
     checkpoint = {
         'epoch' : epoch,
-        'iter' : iter,
+        'iter' : it,
         'model_state_dict' : model.state_dict(), 
         'optimizer_state_dict' : model_optim.state_dict(),
         'local_loss' : local_loss, 
@@ -140,7 +136,7 @@ def save_model(model, model_optim, epoch, iter, local_loss, global_loss):
     torch.save(checkpoint, PATH)
     
 
-def train_epoch(model, model_optim, device, epoch, log_per_iter=100, save_per_iter=100):
+def train_epoch(model, model_optim, device, epoch, log_per_iter=args.log_every, save_per_iter=args.log_every):
     
     n_batch = (len(data) - 30000) // args.batch_size
 
@@ -168,10 +164,7 @@ def train_epoch(model, model_optim, device, epoch, log_per_iter=100, save_per_it
         
         # forward propagation
         probs, encoded_input = model(input_sentence, lengths)
-        # '''
-        # probs : size - (seq_len + 2, batch_size, vocab_size + 1)
-        # encoded_input : size - (batch_size, emb_size)
-        # '''
+        
         '''
         probs: (batch_size, seq_len , vocab_size )
         encoded_input : (batch_size, emb_size)
@@ -188,7 +181,6 @@ def train_epoch(model, model_optim, device, epoch, log_per_iter=100, save_per_it
         encoded_output = model.encoder(probs)
         
         # compute global loss
-        '''([])'''
         global_loss = model.JointEmbeddingLoss(encoded_output, encoded_input)
         
         global_loss *= 5
@@ -208,10 +200,14 @@ def train_epoch(model, model_optim, device, epoch, log_per_iter=100, save_per_it
         den += encoded_input.size()[0]
         print(idx, end='|')
         if (idx + 1) % log_per_iter == 0:
-            eval_batch(model, device, epoch, idx + 1)
+            writer_train.add_scalar('local_loss', local_loss.item(), epoch * iter_per_epoch + idx)
+            writer_train.add_scalar('global_loss', global_loss.item(), epoch * iter_per_epoch + idx)
+            writer_train.add_scalar('total_loss', local_loss.item() + global_loss.item(), epoch * iter_per_epoch + idx)
+
+            eval_batch(model, device, epoch, idx)
 
         if (idx + 1) % save_per_iter == 0:
-            save_model(model, model_optim, epoch, idx + 1, local_loss.item(), global_loss.item())
+            save_model(model, model_optim, epoch, idx, local_loss.item(), global_loss.item())
 
         torch.cuda.empty_cache()
         idx+=1
@@ -257,7 +253,7 @@ for epoch in range(start_epoch, start_epoch + n_epoch):
     local_loss = local_loss / n_batch
     global_loss = global_loss / n_batch
     
-    eval_batch(model, device, epoch + 1, 0)
-    save_model(model, model_optim, epoch + 1, 0, local_loss, global_loss)
+    eval_batch(model, device, epoch + 1, -1)
+    save_model(model, model_optim, epoch + 1, -1, local_loss, global_loss)
 
 print('Done !!!')

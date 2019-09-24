@@ -3,6 +3,7 @@ import misc.utils as utils
 def decode_sequence(ix_to_word, seq):
     N, D = seq.size()[0], seq.size()[1]
     out = []
+    EOS_flag = False
     for i in range(N):
         txt = ''
         for j in range(D):
@@ -13,9 +14,15 @@ def decode_sequence(ix_to_word, seq):
             else:
                 word = ix_to_word[int(ix.item())]
             
-            if j >= 1:
-                txt = txt + ' '
-            txt = txt + word
+            if EOS_flag and word == '<UNK>':
+                break
+
+            if word != '<EOS>' and word != '<PAD>':
+                if j >= 1:
+                    txt = txt + ' '
+                txt = txt + word
+            else :
+                EOS_flag = True
         out.append(txt)
     return out
 
