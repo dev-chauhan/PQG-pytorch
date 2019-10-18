@@ -33,20 +33,20 @@ class Model(nn.Module):
     def JointEmbeddingLoss(self, feature_emb1, feature_emb2):
         
         batch_size = feature_emb1.size()[0]
-        loss = 0
-        for i in range(batch_size):
-            label_score = torch.dot(feature_emb1[i], feature_emb2[i])
-            for j in range(batch_size):
-                cur_score = torch.dot(feature_emb2[i], feature_emb1[j])
-                score = cur_score - label_score + 1
-                if 0 < score.item():
-                    loss += max(0, cur_score - label_score + 1)
+        # loss = 0
+        # for i in range(batch_size):
+        #     label_score = torch.dot(feature_emb1[i], feature_emb2[i])
+        #     for j in range(batch_size):
+        #         cur_score = torch.dot(feature_emb2[i], feature_emb1[j])
+        #         score = cur_score - label_score + 1
+        #         if 0 < score.item():
+        #             loss += max(0, cur_score - label_score + 1)
 
-        denom = batch_size * batch_size
+        # denom = batch_size * batch_size
         
-        return loss / denom
+        return torch.sum(torch.clamp(torch.mm(feature_emb1, feature_emb2.t()) - torch.sum(feature_emb1 * feature_emb2, dim=-1) + 1, min=0.0)) / (batch_size * batch_size)
 
-    def forward(self, input_sentences, lengths):
+    def forward(self, input_sentences, lengths, true_out=None):
         
         input_one_hot = torch.zeros(*input_sentences.size(), self.vocab_size, device=self.device)
         # for batch in range(input_sentences.size()[0]):
@@ -57,9 +57,13 @@ class Model(nn.Module):
         
         encoded = self.encoder(input_one_hot)
         
-        probs = self.decoder(encoded, input_sentences, lengths) # (batch_size, seq_len, vocab_len)
+        probs = self.decoder(encoded, input_sentences, lengths,teacher_forcing=True, true_out=true_out) # (batch_size, seq_len, vocab_len)
         
         return (probs, encoded) # (batch_size, seq_len , vocab_size), (batch_size, feat_size)
+    
+    def prob2pred(self, prob):
+
+        return torch.multinomial(torch.exp(prob.view(-1, prob.size(-1))), 1).view(prob.size(0), prob.size(1))
 
     def sample(self, encoded_input):
         

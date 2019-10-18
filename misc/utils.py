@@ -64,6 +64,10 @@ def average_values(t):
         n += 1
     return vsum / n
 
+def one_hot(t, c):
+    return torch.zeros(*t.size(), c, device=t.device).scatter_(-1, t.unsqueeze(-1), 1)
+
+
 def make_parser():
     parser = argparse.ArgumentParser()
 
@@ -104,7 +108,7 @@ def make_parser():
     parser.add_argument('--checkpoint_dir', default='Results/checkpoints', help='folder to save checkpoints into (empty = this folder)')
     parser.add_argument('--language_eval', type=int, default=1, help='Evaluate language as well (1 = yes, 0 = no)? BLEU/CIDEr/METEOR/ROUGE_L? requires coco-caption code from Github.')
     parser.add_argument('--val_images_use', type=int, default=24800, help='how many images to use when periodically evaluating the validation loss? (-1 = all)')
-    parser.add_argument('--save_checkpoint_every', type=int, default=2500, help='how often to save a model checkpoint?')
+    parser.add_argument('--save_every', type=int, default=500, help='how often to save a model checkpoint?')
     parser.add_argument('--log_every', type=int , default=100, help='How often do we snapshot losses, for inclusion in the progress dump? (0 = disable)')
 
     # misc
