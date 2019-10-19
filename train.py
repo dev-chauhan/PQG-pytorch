@@ -92,7 +92,7 @@ def eval_batch(encoder, generator, device, log_idx):
         loss = nn.CrossEntropyLoss(ignore_index=data.PAD_token)
 
         # compute local loss
-        local_loss = loss(seq_prob.permute(0, 2, 1), sim_seq)
+        local_loss = loss(seq_logprob.permute(0, 2, 1), sim_seq)
         
         # get encoding from 
         encoded_output = encoder(seq_prob)
@@ -187,7 +187,7 @@ def train_epoch(encoder, generator, model_optim, device, epoch, log_per_iter=arg
 
          # compute local loss
         '''loss : ([N, C, d1], [N, d1])'''
-        local_loss = loss(probs.permute(0, 2, 1), sim_seq)
+        local_loss = loss(logprobs.permute(0, 2, 1), sim_seq)
         
         # get encoding from
         '''([N, d1, C])''' 
