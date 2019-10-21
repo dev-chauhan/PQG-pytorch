@@ -27,8 +27,8 @@ class layer(nn.Module):
         seq: (batch_size, seq_len)
         lengths: (batch_size, )
         '''
-        if teacher_forcing == True:
-            teacher_forcing = random.random() <= 0.5
+        # if teacher_forcing == True:
+        #     teacher_forcing = random.random() <= 0.5
         
         if teacher_forcing:
             

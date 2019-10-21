@@ -24,6 +24,7 @@ import os
 log_folder = 'logs'
 save_folder = 'save'
 folder = time.strftime("%d-%m-%Y_%H:%M:%S")
+folder = args.name + folder
 
 if args.start_from != 'None':
     folder = args.start_from.split('/')[-2]

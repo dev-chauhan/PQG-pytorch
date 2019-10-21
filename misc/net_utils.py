@@ -14,8 +14,8 @@ def decode_sequence(ix_to_word, seq):
                 word = ix_to_word[len(ix_to_word) - 1]
             else:
                 word = ix_to_word[int(ix.item())]
-            if word == '<PAD>':
-                continue
+            if word == '<EOS>':
+                break
             if j > 0:
                 txt = txt + ' '
             txt = txt + word

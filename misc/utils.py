@@ -113,7 +113,7 @@ def make_parser():
 
     # misc
     parser.add_argument('--backend', default='cudnn', help='nn|cudnn')
-    parser.add_argument('--id', default='1', help='an id identifying this run/job. used in cross-val and appended when writing progress files')
+    parser.add_argument('--name', default='', help='an id identifying this run/job. used in cross-val and appended when writing progress files')
     parser.add_argument('--seed', type=int, default=1234, help='random number generator seed to use')
     parser.add_argument('--gpuid', type=int, default=-1, help='which gpu to use. -1 = use CPU')
     parser.add_argument('--nGPU', type=int, default=3, help='Number of GPUs to use by default')
