@@ -29,9 +29,14 @@ folder = args.name + folder
 if args.start_from != 'None':
     folder = args.start_from.split('/')[-2]
 
-writer_train = SummaryWriter(os.path.join(log_folder, folder + 'train'))
-writer_val = SummaryWriter(os.path.join(log_folder, folder + 'val'))
-writer_score = SummaryWriter(os.path.join(log_folder, folder + 'score'))
+if args.start_from != 'None':
+    writer_train = SummaryWriter(os.path.join(log_folder, folder + 'train' + args.name))
+    writer_val = SummaryWriter(os.path.join(log_folder, folder + 'val'+ args.name))
+    writer_score = SummaryWriter(os.path.join(log_folder, folder + 'score'+ args.name))
+else:
+    writer_train = SummaryWriter(os.path.join(log_folder, folder + 'train'))
+    writer_val = SummaryWriter(os.path.join(log_folder, folder + 'val'))
+    writer_score = SummaryWriter(os.path.join(log_folder, folder + 'score'))
 
 subprocess.run(['mkdir', os.path.join(save_folder, folder)])
 subprocess.run(['mkdir', os.path.join('samples', folder)])
@@ -212,7 +217,7 @@ def train_epoch(encoder, generator, model_optim, device, epoch, log_per_iter=arg
         acc_l_loss += local_loss.item()
         epoch_global_loss += global_loss.item()
         acc_g_loss += global_loss.item()
-        print(idx, end='|')
+        # print(idx, end='|')
         if (idx + 1) % log_per_iter == 0:
             writer_train.add_scalar('local_loss', acc_l_loss /log_per_iter, log_idx)
             writer_train.add_scalar('global_loss', acc_g_loss /log_per_iter, log_idx)
@@ -236,7 +241,7 @@ import math
 
 decay_factor = math.exp(math.log(0.1) / (1500 * 1250))
 
-model_optim = optim.RMSprop(list(encoder.parameters()) + list(generator.parameters()), lr=0.0008) # for trial using default and no decay of lr
+model_optim = optim.RMSprop(list(encoder.parameters()) + list(generator.parameters()), lr=args.learning_rate) # for trial using default and no decay of lr
 
 if args.start_from != 'None':
     print('loading model from ' + args.start_from)
@@ -245,7 +250,7 @@ if args.start_from != 'None':
     generator.load_state_dict(checkpoint['generator_state_dict'])
     # model_optim.load_state_dict(checkpoint['optimizer_state_dict'])
     start_epoch = checkpoint['epoch'] + 1
-    lr = 0.0008 * (decay_factor ** (start_epoch))
+    lr = args.learning_rate * (decay_factor ** (start_epoch))
     for g in model_optim.param_groups:
         g['lr'] = lr
     print("learning rate = ", lr)
