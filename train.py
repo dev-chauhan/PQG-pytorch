@@ -54,8 +54,8 @@ data = Dataloader(args.input_json, args.input_ques_h5)
 
 train_loader = Data.DataLoader(Data.Subset(data, range(args.train_dataset_len)), batch_size = args.batch_size, shuffle=True)
 test_loader = Data.DataLoader(Data.Subset(data, range(args.train_dataset_len, args.train_dataset_len + args.val_dataset_len)), batch_size = args.batch_size, shuffle=True)
-import itertools
-test_loader_iter = itertools.cycle(test_loader)
+# import itertools
+# test_loader_iter = itertools.cycle(test_loader)
 # make model
 
 
@@ -84,33 +84,42 @@ def eval_batch(encoder, generator, device, log_idx):
     generator.eval()
 
     with torch.no_grad():
-        input_sentence, lengths, sim_seq, _, _ = next(test_loader_iter)
-        input_sentence = input_sentence.to(device)
-        lengths = lengths.to(device)
-        sim_seq = sim_seq.to(device)
+        acc_local_loss = 0
+        acc_global_loss = 0
+        acc_seq = []
+        acc_real = []
+        acc_out = []
+        for input_sentence, lengths, sim_seq, _, _ in test_loader:
+            input_sentence = input_sentence.to(device)
+            lengths = lengths.to(device)
+            sim_seq = sim_seq.to(device)
 
-        encoded_input = encoder(utils.one_hot(input_sentence, data.getVocabSize()))
-        
-        seq_logprob = generator(encoded_input, teacher_forcing=False)
-        seq_prob = torch.exp(seq_logprob)
-        seq = net_utils.prob2pred(seq_logprob)
-        # local loss criterion
-        loss = nn.CrossEntropyLoss(ignore_index=data.PAD_token)
+            encoded_input = encoder(utils.one_hot(input_sentence, data.getVocabSize()))
+            
+            seq_logprob = generator(encoded_input, teacher_forcing=False)
+            seq_prob = torch.exp(seq_logprob)
+            seq = net_utils.prob2pred(seq_logprob)
+            # local loss criterion
+            loss = nn.CrossEntropyLoss(ignore_index=data.PAD_token)
 
-        # compute local loss
-        local_loss = loss(seq_logprob.permute(0, 2, 1), sim_seq)
+            # compute local loss
+            local_loss = loss(seq_logprob.permute(0, 2, 1), sim_seq)
+            
+            # get encoding from 
+            encoded_output = encoder(seq_prob)
+            encoded_sim = encoder(utils.one_hot(sim_seq, data.getVocabSize()))
+            # compute global loss
+            global_loss = net_utils.JointEmbeddingLoss(encoded_output, encoded_sim)
+            
+            acc_local_loss += local_loss.item()
+            acc_global_loss += global_loss.item()
+
+            seq = seq.long()
+            acc_seq += net_utils.decode_sequence(data.ix_to_word, seq)
+            acc_real += net_utils.decode_sequence(data.ix_to_word, input_sentence)
+            acc_out += net_utils.decode_sequence(data.ix_to_word, sim_seq)
         
-        # get encoding from 
-        encoded_output = encoder(seq_prob)
-        encoded_sim = encoder(utils.one_hot(sim_seq, data.getVocabSize()))
-        # compute global loss
-        global_loss = net_utils.JointEmbeddingLoss(encoded_output, encoded_sim)
-        
-        seq = seq.long()
-        sents = net_utils.decode_sequence(data.ix_to_word, seq)
-        real_sents = net_utils.decode_sequence(data.ix_to_word, input_sentence)
-        out_sents = net_utils.decode_sequence(data.ix_to_word, sim_seq)
-        coco, cocoRes = getObjsForScores(out_sents, sents)
+        coco, cocoRes = getObjsForScores(acc_out, acc_seq)
 
         evalObj = COCOEvalCap(coco, cocoRes)
 
@@ -119,14 +128,14 @@ def eval_batch(encoder, generator, device, log_idx):
         for key in evalObj.eval:
             writer_score.add_scalar(key, evalObj.eval[key], log_idx)
 
-        writer_val.add_scalar('local_loss', local_loss.item(), log_idx)
-        writer_val.add_scalar('global_loss', global_loss.item(), log_idx)
-        writer_val.add_scalar('total_loss', local_loss.item() + global_loss.item(), log_idx)
+        writer_val.add_scalar('local_loss', acc_local_loss/len(test_loader), log_idx)
+        writer_val.add_scalar('global_loss', acc_global_loss/len(test_loader), log_idx)
+        writer_val.add_scalar('total_loss', (acc_local_loss + acc_global_loss)/len(test_loader), log_idx)
 
         f_sample = open(file_sample + str(log_idx) + '.txt', 'w')
         
         idx = 1
-        for r, s, t in zip(real_sents,out_sents, sents):
+        for r, s, t in zip(acc_real,acc_out, acc_seq):
 
             f_sample.write(str(idx) + '\nreal : ' + r + '\nout : ' + s + '\npred : ' + t + '\n\n')
             idx += 1
@@ -274,6 +283,10 @@ for epoch in range(start_epoch, start_epoch + n_epoch):
     
     local_loss = local_loss / n_batch
     global_loss = global_loss / n_batch
+    
+    writer_train.add_scalar('local_loss', local_loss, log_idx)
+    writer_train.add_scalar('global_loss', global_loss, log_idx)
+    writer_train.add_scalar('total_loss', local_loss + global_loss, log_idx)
     
     eval_batch(encoder, generator, device, log_idx)
     log_idx += 1

@@ -33,6 +33,8 @@ class Dataloader(data.Dataset):
         self.ix_to_word[self.EOS_token] = '<EOS>'
         self.PAD_token = len(self.ix_to_word)
         self.ix_to_word[self.PAD_token] = '<PAD>'
+        self.SOS_token = len(self.ix_to_word)
+        self.ix_to_word[self.SOS_token] = '<SOS>'
         self.vocab_size = len(self.ix_to_word)
         print('DataLoader loading h5 question file:', input_ques_h5_path)
         qa_data = h5py.File(input_ques_h5_path, 'r')
@@ -68,11 +70,12 @@ class Dataloader(data.Dataset):
 
     def process_data(self, data, data_len):
         N = data.size()[0]
-        new_data = torch.zeros(N, data.size()[1] + 1, dtype=torch.long) + self.PAD_token
+        new_data = torch.zeros(N, data.size()[1] + 2, dtype=torch.long) + self.PAD_token
         for i in range(N):
-            new_data[i, :data_len[i]] = data[i, :data_len[i]]
-            new_data[i, data_len[i]] = self.EOS_token
-            data_len[i] += 1
+            new_data[i, 1:data_len[i]+1] = data[i, :data_len[i]]
+            new_data[i, 0] = self.SOS_token
+            new_data[i, data_len[i]+1] = self.EOS_token
+            data_len[i] += 2
         return new_data, data_len
     
     def __len__(self):

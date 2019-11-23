@@ -57,7 +57,9 @@ e = args.end_to_file
 
 import subprocess
 
+print(folder_name)
 subprocess.run(['mkdir', os.path.join('result', folder_name)])
+print(folder_name, "is created !!!")
 
 for i in range(s, e+1):
     print("Evaluating model number", i)
