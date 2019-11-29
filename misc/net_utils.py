@@ -15,10 +15,11 @@ def decode_sequence(ix_to_word, seq):
             else:
                 word = ix_to_word[int(ix.item())]
             if word == '<EOS>':
-                #txt = txt + ' '
-                #txt = txt + word
+                txt = txt + ' '
+                txt = txt + word
                 break
             if word == '<SOS>':
+                txt = txt + '<SOS>'
                 continue
             if j > 0:
                 txt = txt + ' '
