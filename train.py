@@ -51,7 +51,7 @@ train_loader = Data.DataLoader(Data.Subset(data, range(args.train_dataset_len)),
 test_loader = Data.DataLoader(Data.Subset(data, range(args.train_dataset_len, args.train_dataset_len + args.val_dataset_len)), batch_size=args.batch_size, shuffle=True)
 
 encoder = DocumentCNN(data.getVocabSize(), args.txtSize, dropout=args.drop_prob_lm, avg=1, cnn_dim=args.cnn_dim)
-if args.model == 'EDL' or args.model == 'EDLP' or args.model == 'EDLPG':
+if args.model == 'EDP' or args.model == 'EDLP' or args.model == 'EDLPG':
     discriminator = DocumentCNN(data.getVocabSize(), args.txtSize, dropout=args.drop_prob_lm, avg=1, cnn_dim=args.cnn_dim)
 else:
     discriminator = None
