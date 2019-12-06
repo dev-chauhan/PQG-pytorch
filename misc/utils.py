@@ -16,7 +16,7 @@ def make_parser():
     parser.add_argument('--start_from', default='None', help='path to a model checkpoint to initialize model weights from. Empty = don\'t')
 
     # # Model settings
-    parser.add_argument_group('--model', default='EDLPS', help='which model to use? EDL|EDP|EDLP|EDLPS|EDLPG|EDLPGS|EDG|EDPG')
+    parser.add_argument('--model', default='EDLPS', help='which model to use? EDL|EDP|EDLP|EDLPS|EDLPG|EDLPGS|EDG|EDPG')
     parser.add_argument('--batch_size', type=int, default=150, help='what is theutils batch size in number of images per batch? (there will be x seq_per_img sentences)')
     parser.add_argument('--rnn_size', default=512, type=int, help='size of the rnn in number of hidden nodes in each layer')
     parser.add_argument('--input_encoding_size', type=int, default=512,help='the encoding size of each token in the vocabulary, and the image.')
