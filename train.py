@@ -76,6 +76,11 @@ if args.start_from != 'None':
     checkpoint = torch.load(args.start_from, map_location=torch.device('cpu'))
     encoder.load_state_dict(checkpoint['encoder_state_dict'])
     generator.load_state_dict(checkpoint['generator_state_dict'])
+    if discriminator is not None:
+        discriminator.load_state_dict(checkpoint['discriminator_state_dict'])
+    if discriminatorg is not None:
+        discriminatorg.load_state_dict(checkpoint['discriminatorg_state_dict'])
+
     start_epoch = checkpoint['epoch'] + 1
 else:
     start_epoch = 0
