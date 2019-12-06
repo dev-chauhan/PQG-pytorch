@@ -18,7 +18,7 @@ def getObjsForScores(real_sents, pred_sents):
     return coco(real_sents), coco(pred_sents)
 
 
-def save_model(encoder, generator, model_optim, epoch, it, local_loss, global_loss, save_folder, folder):
+def save_model(encoder, generator, model_optim, epoch, it, local_loss, global_loss, save_folder, folder, discriminator=None, discriminatorg=None):
 
     PATH = os.path.join(save_folder, folder, str(epoch) + '_' + str(it) + '.tar')
 
@@ -31,6 +31,10 @@ def save_model(encoder, generator, model_optim, epoch, it, local_loss, global_lo
         'local_loss': local_loss,
         'global_loss': global_loss
     }
+    if discriminator is not None:
+        checkpoint['discriminator_state_dict'] = discriminator.state_dict()
+    if discriminatorg is not None:
+        checkpoint['discriminatorg_state_dict'] = discriminatorg.state_dict()
 
     torch.save(checkpoint, PATH)
 

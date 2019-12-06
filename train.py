@@ -84,6 +84,10 @@ device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 
 encoder = encoder.to(device)
 generator = generator.to(device)
+if discriminator is not None:
+    discriminator.to(device)
+if discriminatorg is not None:
+    discriminatorg.to(device)
 n_epoch = args.n_epoch
 log_idx = 0
 
@@ -117,6 +121,6 @@ for epoch in range(start_epoch, start_epoch + n_epoch):
 
     eval_batch(encoder, generator, data, test_loader, writer_val, file_sample, device, log_idx)
     log_idx += 1
-    save_model(encoder, generator, model_optim, epoch + 1, -1, local_loss, global_loss, save_folder, folder)
+    save_model(encoder, generator, model_optim, epoch + 1, -1, local_loss, global_loss, save_folder, folder, discriminator=discriminator, discriminatorg=discriminatorg)
 
 print('Done !!!')
