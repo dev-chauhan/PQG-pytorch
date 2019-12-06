@@ -1,68 +1,6 @@
-import json
 import torch
 import argparse
 
-def right_align(sequences, lengths):
-    
-    aligned = torch.zeros(sequences.size())
-    n = sequences.size()[0]
-    m = sequences.size()[1]
-
-    for i in range(n):
-        if lengths[i] > 0:
-            aligned[i][m-lengths[i]:] = sequences[i][:lengths[i]]
-    
-    return aligned
-
-def getopt(opt=None, key=None, default_value=None):
-    try:
-        if default_value == None and (opt == None or opt[key] == None):
-            raise Exception('required key', key, 'is not provided')
-        if opt == None:
-            return default_value
-        v = opt[key]
-        if v == None:
-            v = default_value
-        return v
-
-    except Exception as err:
-        print(err)
-        raise
-
-def read_json(path):
-    with open(path) as json_file:
-        data = json.load(json_file)
-    return data
-
-def write_json(path, j):
-    with open(path, 'w') as json_file:
-        json.dump(j, json_file)
-    
-def dict_average(dicts):
-    dictionary = {}
-    n = 0
-    for d in dicts:
-        for k, v in d:
-            if dictionary[k] == None :
-                dictionary[k] = 0
-            dictionary[k] += v
-        n += 1
-    
-    for k, v in dictionary:
-        dictionary[k] /= n
-
-    return dictionary
-
-def count_keys(t):
-    return len(t)
-
-def average_values(t):
-    n = 0
-    vsum = 0
-    for k, v in t:
-        vsum += v
-        n += 1
-    return vsum / n
 
 def one_hot(t, c):
     return torch.zeros(*t.size(), c, device=t.device).scatter_(-1, t.unsqueeze(-1), 1)
@@ -76,9 +14,9 @@ def make_parser():
 
     # starting point
     parser.add_argument('--start_from', default='None', help='path to a model checkpoint to initialize model weights from. Empty = don\'t')
-    parser.add_argument('--feature_type', default='VGG', help='VGG or Residual')
 
     # # Model settings
+    parser.add_argument_group('--model', default='EDLPS', help='which model to use? EDL|EDP|EDLP|EDLPS|EDLPG|EDLPGS|EDG|EDPG')
     parser.add_argument('--batch_size', type=int, default=150, help='what is theutils batch size in number of images per batch? (there will be x seq_per_img sentences)')
     parser.add_argument('--rnn_size', default=512, type=int, help='size of the rnn in number of hidden nodes in each layer')
     parser.add_argument('--input_encoding_size', type=int, default=512,help='the encoding size of each token in the vocabulary, and the image.')
