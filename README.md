@@ -93,3 +93,10 @@ Name of model | Bleu_1 | Bleu_2 | Bleu_3 | Bleu_4 | ROUGE_L | METEOR | CIDEr |
 ---|--|--|--|--|--|--|--|
 EDL|0.4162|0.2578|0.1724|0.1219|0.4191|0.3244|0.6189|
 EDLPS|0.4754|0.3160|0.2249|0.1672|0.4781|0.3488|1.0949|
+
+Following are the results for 50k quora question pairs dataset for some models.
+
+Name of model | Bleu_1 | Bleu_2 | Bleu_3 | Bleu_4 | ROUGE_L | METEOR | CIDEr |
+---|--|--|--|--|--|--|--|
+EDL|0.3877|0.2336|0.1532|0.1067|0.3913|0.3133|0.4550|
+EDLPS|0.4553|0.2981 |0.2105|0.1560|0.4583|0.3421|0.9690|
