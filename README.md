@@ -91,5 +91,5 @@ Following are the results for 100k quora question pairs dataset for some models.
 
 Name of model | Bleu_1 | Bleu_2 | Bleu_3 | Bleu_4 | ROUGE_L | METEOR | CIDEr |
 ---|--|--|--|--|--|--|--|
-EDLP|0.4070|0.2485|0.1646|0.1154|0.4099|0.3205|0.5623|
+EDL|0.4162|0.2578|0.1724|0.1219|0.4191|0.3244|0.6189|
 EDLPS|0.4754|0.3160|0.2249|0.1672|0.4781|0.3488|1.0949|
