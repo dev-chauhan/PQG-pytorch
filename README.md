@@ -36,7 +36,7 @@ Download all the data files from here.
 ##### Download Dataset
 We have referred  [neuraltalk2](https://github.com/karpathy/neuraltalk2) and [Text-to-Image Synthesis ](https://github.com/reedscot/icml2016) to prepare our code base. The first thing you need to do is to download the Quora Question Pairs dataset from the [Quora Question Pair website](https://data.quora.com/First-Quora-Dataset-Release-Question-Pairs) and put the same in the `data` folder.
 
-If you want to train from scratch continue reading or if you just want to evaluate using a pretrained model then head over to `Datafiles` section and download the data files (put all the data files in the `data` folder) and pretrained model( put this in the `pretrained` folder) and run `eval.lua`
+If you want to train from scratch continue reading or if you just want to evaluate using a pretrained model then head over to `Datafiles` section and download the data files (put all the data files in the `data` folder) and run `score.py` to evaluate pretrained model.
 
 Now we need to do some preprocessing, head over to the `prepro` folder and run
 
