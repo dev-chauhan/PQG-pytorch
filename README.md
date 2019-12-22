@@ -1,6 +1,6 @@
 ## Paraphrase Question Generator using Shared Discriminator
 
-PyTorch code for Paraphrase Question Generator
+PyTorch code for ``Revisiting Paraphrase Question Generator using  Pairwise Discriminator''.  This code-based is built upon this paper [``Learning Semantic Sentence Embeddings using Pair-wise Discriminator''](https://www.aclweb.org/anthology/C18-1230.pdf).
 
 ### Requirements and Setup
 
@@ -100,3 +100,30 @@ Name of model | Bleu_1 | Bleu_2 | Bleu_3 | Bleu_4 | ROUGE_L | METEOR | CIDEr |
 ---|--|--|--|--|--|--|--|
 EDL|0.3877|0.2336|0.1532|0.1067|0.3913|0.3133|0.4550|
 EDLPS|0.4553|0.2981 |0.2105|0.1560|0.4583|0.3421|0.9690|
+
+
+### Reference
+
+If you use this code as part of any published research, please acknowledge the following paper
+
+```
+@inproceedings{patro2018learning,
+  title={Learning Semantic Sentence Embeddings using Sequential Pair-wise Discriminator},
+  author={Patro, Badri Narayana and Kurmi, Vinod Kumar and Kumar, Sandeep and Namboodiri, Vinay},
+  booktitle={Proceedings of the 27th International Conference on Computational Linguistics},
+  pages={2715--2729},
+  year={2018}
+}
+```
+
+## Contributors
+* [Dev  Chauhan][1] (devgiri@iitk.ac.in)
+* [Badri N. Patro][2] (badri@iitk.ac.in)
+* [Vinod K. Kurmi][2] (vinodkk@iitk.ac.in)
+
+[1]: https://github.com/dev-chauhan
+[2]: https://github.com/badripatro
+[3]: https://github.com/vinodkkurmi
+
+
+
