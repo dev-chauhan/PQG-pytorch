@@ -1,6 +1,6 @@
 ## Paraphrase Question Generator using Shared Discriminator
 
-PyTorch code for ``Revisiting Paraphrase Question Generator using  Pairwise Discriminator''.  This code-based is built upon this paper [``Learning Semantic Sentence Embeddings using Pair-wise Discriminator''](https://www.aclweb.org/anthology/C18-1230.pdf).
+PyTorch code for[ Revisiting Paraphrase Question Generator using  Pairwise Discriminator].  This code-based is built upon this paper [Learning Semantic Sentence Embeddings using Pair-wise Discriminator](https://www.aclweb.org/anthology/C18-1230.pdf).
 
 ### Requirements and Setup
 
