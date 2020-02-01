@@ -2,7 +2,7 @@ data/quora_data_prepro.json
 tst.py
 data/quora_data_prepro.h5
 *.pyc
-misc/__pycache__/*
+*/__pycache__/*
 runs/*
 runs
 ignore.txt
@@ -16,3 +16,4 @@ samples
 samples/*
 result
 result/*
+data/
