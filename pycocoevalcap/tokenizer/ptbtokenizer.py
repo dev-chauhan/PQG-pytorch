@@ -13,6 +13,7 @@ import sys
 import subprocess
 import tempfile
 import itertools
+import contextlib
 
 # path to the stanford corenlp jar
 STANFORD_CORENLP_3_4_1_JAR = 'stanford-corenlp-3.4.1.jar'
@@ -50,7 +51,9 @@ class PTBTokenizer:
         cmd.append(os.path.basename(tmp_file.name))
         p_tokenizer = subprocess.Popen(cmd, cwd=path_to_jar_dirname, \
                 stdout=subprocess.PIPE)
+        
         token_lines = p_tokenizer.communicate(input=sentences.rstrip())[0]
+
         token_lines = token_lines.decode()
         lines = token_lines.split('\n')
         # remove temp file

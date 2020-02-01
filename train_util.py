@@ -18,6 +18,29 @@ def getObjsForScores(real_sents, pred_sents):
     return coco(real_sents), coco(pred_sents)
 
 
+def evaluate_scores(s1, s2):
+
+    '''
+    calculates scores and return the dict with score_name and value
+    '''
+    coco, cocoRes = getObjsForScores(s1, s2)
+
+    evalObj = COCOEvalCap(coco, cocoRes)
+
+    evalObj.evaluate()
+
+    return evalObj.eval
+
+
+def dump_samples(ph, pph, gpph, file_name):
+
+    file = open(file_name, "w")
+
+    for r, s, t in zip(ph, pph, gpph):
+        file.write("ph : " + r + "\npph : " + s + "\ngpph : " + t + '\n\n')
+    file.close()
+
+
 def save_model(encoder, generator, model_optim, epoch, it, local_loss, global_loss, save_folder, folder, discriminator=None, discriminatorg=None):
 
     PATH = os.path.join(save_folder, folder, str(epoch) + '_' + str(it) + '.tar')
