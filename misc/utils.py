@@ -18,7 +18,6 @@ def make_parser():
     # # Model settings
     parser.add_argument('--model', default='EDLPS', help='which model to use? EDL|EDP|EDLP|EDLPS|EDLPG|EDLPGS|EDG|EDPG')
     parser.add_argument('--batch_size', type=int, default=150, help='what is theutils batch size in number of images per batch? (there will be x seq_per_img sentences)')
-    parser.add_argument('--rnn_size', default=512, type=int, help='size of the rnn in number of hidden nodes in each layer')
     parser.add_argument('--input_encoding_size', type=int, default=512,help='the encoding size of each token in the vocabulary, and the image.')
     parser.add_argument('--att_size', type=int, default=512, help='size of sttention vector which refer to k in paper')
     parser.add_argument('--emb_size',type=int, default=512, help='the size after embeeding from onehot')
@@ -57,7 +56,12 @@ def make_parser():
     parser.add_argument('--nGPU', type=int, default=3, help='Number of GPUs to use by default')
 
     #text encoder
-    parser.add_argument('--txtSize', type=int, default=512,help='size of the rnn in number of hidden nodes in each layer')
-    parser.add_argument('--cnn_dim',type=int, default=512,help='the encoding size of each token in the vocabulary, and the image.')
+    parser.add_argument('--emb_dim',type=int, default=512,help='dim of word embedding')
+    parser.add_argument('--emb_hid_dim', type=int, default=256,help='hidden dim of word embedding')
+    parser.add_argument('--enc_dropout', type=float, default=0.5,help='dropout for encoder module')
+    parser.add_argument('--enc_rnn_dim', default=512, type=int, help='size of the rnn in number of hidden nodes in each layer of gru in encoder')
+    parser.add_argument('--enc_dim', type=int, default=512,help='size of the encoded sentence')
+    parser.add_argument('--gen_rnn_dim', default=512, type=int, help='size of the rnn in number of hidden nodes in each layer of lstm in generator')
+    parser.add_argument('--gen_dropout',type=float, default=0.5,help='dropout for generator module')
 
     return parser

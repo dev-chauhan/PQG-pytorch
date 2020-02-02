@@ -46,7 +46,7 @@ class Dataloader(data.Dataset):
         self.train_id = 0
         self.seq_length = ques_train.size()[1]
 
-        print('self.ques_train.shape[0]', ques_train.size()[0])
+        print('Training dataset length : ', ques_train.size()[0])
 
 
         ques_test, ques_len_test = self.process_data(torch.from_numpy(qa_data['ques_test'][...].astype(int)), torch.from_numpy(qa_data['ques_length_test'][...].astype(int)))
@@ -57,7 +57,7 @@ class Dataloader(data.Dataset):
 
         self.test_id = 0
 
-        print('self.ques_test.shape[0]', ques_test.size()[0])
+        print('Test dataset length : ', ques_test.size()[0])
         qa_data.close()
 
         self.ques = torch.cat([ques_train, ques_test])
