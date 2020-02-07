@@ -2,6 +2,8 @@
 
 PyTorch code for Paraphrase Question Generator.  This code-based is built upon this paper [Learning Semantic Sentence Embeddings using Pair-wise Discriminator](https://www.aclweb.org/anthology/C18-1230.pdf).
 
+If you want all codes for experiments done please head over to the `orig-code` branch. This code consists of some good models mentioned in above paper only.
+
 ### Requirements and Setup
 
 ##### Use Anaconda or Miniconda
@@ -58,7 +60,7 @@ This will generate two files in `data/` folder, `quora_data_prepro.h5` and `quor
 ### Training
 
 ```
-$ python train.py --model <name of model> --n_epoch <number of epochs>
+$ ./train.py <name of model> --n_epoch <number of epochs>
 ```
 
 You can change training data set and validation data set lengths by adding arguments `--train_dataset_len` and `--val_dataset_len` which are default to `100000` and `30000` which is maximum.
@@ -68,23 +70,16 @@ There are other arguments also for you to experiment like `--batch_size`, `--lea
 You can resume training using `--start_from` argument in which you have to give path of saved model.
 ### Save and log
 
-First you have to make empty directories `save`, `samples`, `logs` and `result`.  
-For each training there will be a directory having unique name in `save`. Saved model will be a `.tar` file. Each model will be saved as `<epoch number>_-1.tar` in that directory.
+First you have to make empty directories `save`, `samples`, and `logs`.  
+For each training there will be a directory having unique name in `save`. Saved model will be a `.tar` file. Each model will be saved as `<epoch number>` in that directory.
 
-In `samples` directory with same unique name as above the directory contains a `.txt` file for each epoch as `<epoch number>.txt` having generated paraphrases by model at the end of that epoch on validation data set.
+In `samples` directory with same unique name as above the directory contains a `.txt` file for each epoch as `<epoch number>_train.txt` or `<epoch number>_val.txt` having generated paraphrases by model at the end of that epoch on validation data set.
 
 Logs for training and evaluation is stored in `logs` directory which you can see using `tensorboard` by running following command.
 ```
 tensorboard --logdir <path of logs directory>
 ```
 This command will tell you where you can see your logs on browser, commonly it is `localhost:6006` but you can change it using `--port` argument in above command.
-### Evaluation
-
-After finishing the training run the following command to get scores and generated paraphrases for models saved from `--start_from_file_-1.tar` to `--end_to_file_-1.tar`.
-```
-$ python score.py --start_from <unique folder name without trailing backslash> --start_from_file <epoch number to start evaluation with> --end_to_file <epoch number to end evaluation with>
-```
-This will be saved in `result` directory and file `<epoch number>.txt` contains generated paraphrases and `<epoch number>-score.txt` contains Bleu, METEOR, ROUGE_L and CIDEr scores.
 
 ### Results
 Following are the results for 100k quora question pairs dataset for some models.
@@ -100,7 +95,6 @@ Name of model | Bleu_1 | Bleu_2 | Bleu_3 | Bleu_4 | ROUGE_L | METEOR | CIDEr |
 ---|--|--|--|--|--|--|--|
 EDL|0.3877|0.2336|0.1532|0.1067|0.3913|0.3133|0.4550|
 EDLPS|0.4553|0.2981 |0.2105|0.1560|0.4583|0.3421|0.9690|
-
 
 ### Reference
 
