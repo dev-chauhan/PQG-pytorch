@@ -42,19 +42,3 @@ def JointEmbeddingLoss(feature_emb1, feature_emb2):
             min=0.0
         )
     ) / (batch_size * batch_size)
-
-def clone_list(lst):
-    new = []
-    for t in lst:
-        new.append(t)
-    return new
-
-def language_eval(predictions, id):
-    out_struct = {
-        "val_predictions": predictions
-    }
-    utils.write_json('coco-caption/val'+id+'.json', out_struct)
-    import subprocess
-    subprocess.run(['./misc/call_python_caption_eval.sh', 'val' + id + '.json'])
-    result_struct = utils.read_json('coco-caption/val'+id+'.json_out.json')
-    return result_struct

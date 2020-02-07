@@ -12,7 +12,7 @@ from tqdm import tqdm
 from misc import net_utils, utils
 from misc.dataloader import Dataloader
 from models.enc_dec_sh_dis import ParaphraseGenerator
-from train_util import dump_samples, evaluate_scores
+from misc.train_util import dump_samples, evaluate_scores, save_model
 
 
 def main():
@@ -47,7 +47,7 @@ def main():
 
     # setup logging
     logger = SummaryWriter(os.path.join(LOG_DIR, TIME + args.name))
-    subprocess.run(['mkdir', os.path.join(GEN_DIR, TIME)], check=False)
+    subprocess.run(['mkdir', os.path.join(GEN_DIR, TIME), os.path.join(SAVE_DIR, TIME)], check=False)
 
     # ready model for training
 
@@ -125,7 +125,6 @@ def main():
         dump_samples(ph, pph, gpph,
                      os.path.join(GEN_DIR, TIME,
                                   str(epoch) + "_train.txt"))
-
         # start validation
 
         epoch_l1 = 0
@@ -171,6 +170,8 @@ def main():
             dump_samples(ph, pph, gpph,
                          os.path.join(GEN_DIR, TIME,
                                       str(epoch) + "_val.txt"))
+
+        save_model(pgen, pgen_optim, epoch, os.path.join(SAVE_DIR, TIME, str(epoch)))
 
     # wrap ups
     logger.close()
