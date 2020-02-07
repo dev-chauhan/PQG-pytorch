@@ -2,7 +2,7 @@
 
 PyTorch code for Paraphrase Question Generator.  This code-based is built upon this paper [Learning Semantic Sentence Embeddings using Pair-wise Discriminator](https://www.aclweb.org/anthology/C18-1230.pdf).
 
-If you want all codes for experiments done please head over to the `orig-code` branch. This code consists of some good models mentioned in above paper only.
+If you want the code used for experiments please head over to the `orig-code` branch. This code consists of some good models mentioned in above paper only with more readable and usable form.
 
 ### Requirements and Setup
 
