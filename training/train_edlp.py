@@ -11,8 +11,8 @@ from tqdm import tqdm
 
 from misc import net_utils, utils
 from misc.dataloader import Dataloader
-from models.enc_dec_dis import ParaphraseGenerator
 from misc.train_util import dump_samples, evaluate_scores, save_model
+from models.enc_dec_dis import ParaphraseGenerator
 
 
 def main():
