@@ -14,10 +14,10 @@ If you want the code used for experiments please head over to the `orig-code` br
 ```
 git clone https://www.github.com/dev-chauhan/PQG-pytorch
 cd PQG-pytorch
-conda create -n <env name> --file env.txt
+conda env create -f environment.yml
 
 # activate the environment
-conda activate <env name>
+conda activate PQG
 ```
 3. After that for logging you need to install [tensorboardX](https://github.com/lanpa/tensorboardX).
 ```
