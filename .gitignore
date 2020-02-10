@@ -1,7 +1,4 @@
-data/*
-data/quora_data_prepro.json
 tst.py
-data/quora_data_prepro.h5
 *.pyc
 */__pycache__/*
 runs/*
@@ -17,5 +14,4 @@ samples
 samples/*
 result
 result/*
-data/
 */__pycache__/*

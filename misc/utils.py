@@ -9,8 +9,8 @@ def one_hot(t, c):
 def make_parser():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--input_ques_h5',default='data/quora_data_prepro.h5',help='path to the h5file containing the preprocessed dataset')
-    parser.add_argument('--input_json',default='data/quora_data_prepro.json',help='path to the json file containing additional info and vocab')
+    parser.add_argument('--input_ques_h5',default='data/quora_dataset/quora_data_prepro.h5',help='path to the h5file containing the preprocessed dataset')
+    parser.add_argument('--input_json',default='data/quora_dataset/quora_data_prepro.json',help='path to the json file containing additional info and vocab')
 
     # starting point
     parser.add_argument('--start_from', default='None', help='path to a model checkpoint to initialize model weights from. Empty = don\'t')
