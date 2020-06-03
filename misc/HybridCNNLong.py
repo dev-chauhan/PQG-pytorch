@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from misc.FixedGRU import FixedGRU
+from .FixedGRU import FixedGRU
 
 class HybridCNNLong(nn.Module):
 
