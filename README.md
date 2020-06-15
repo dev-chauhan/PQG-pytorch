@@ -60,7 +60,7 @@ This will generate two files in `data/` folder, `quora_data_prepro.h5` and `quor
 ### Training
 
 ```
-$ ./train.py <name of model> --n_epoch <number of epochs>
+$ ./train.sh <name of model> --n_epoch <number of epochs>
 ```
 
 You can change training data set and validation data set lengths by adding arguments `--train_dataset_len` and `--val_dataset_len` which are default to `100000` and `30000` which is maximum.

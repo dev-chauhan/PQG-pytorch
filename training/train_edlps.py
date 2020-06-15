@@ -47,8 +47,8 @@ def main():
 
     # setup logging
     logger = SummaryWriter(os.path.join(LOG_DIR, TIME + args.name))
-    subprocess.run(['mkdir', os.path.join(GEN_DIR, TIME), os.path.join(SAVE_DIR, TIME)], check=False)
-
+    # subprocess.run(['mkdir', os.path.join(GEN_DIR, TIME), os.path.join(SAVE_DIR, TIME)], check=False)
+    os.makedirs(os.path.join(GEN_DIR, TIME), exist_ok=True)
     # ready model for training
 
     train_loader = Data.DataLoader(

@@ -7,7 +7,7 @@ def main():
 	outtest = []
 	outval = []
 	with open('../data/quora_duplicate_questions.tsv','rb') as tsvin:
-		tsvin = csv.reader(tsvin, delimiter=',')#read the tsv file of quora question pairs
+		tsvin = csv.reader(tsvin, delimiter='\t')#read the tsv file of quora question pairs
 		count0 = 1
 		count1 = 1
 		counter = 1
