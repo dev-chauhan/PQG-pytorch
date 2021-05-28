@@ -108,6 +108,19 @@ If you use this code as part of any published research, please acknowledge the f
   pages={2715--2729},
   year={2018}
 }
+
+
+@article{PATRO2021149,
+title = {Revisiting paraphrase question generator using pairwise discriminator},
+author = {Badri N. Patro and Dev Chauhan and Vinod K. Kurmi and Vinay P. Namboodiri},
+journal = {Neurocomputing},
+volume = {420},
+pages = {149-161},
+year = {2021},
+issn = {0925-2312},
+doi = {https://doi.org/10.1016/j.neucom.2020.08.022},
+url = {https://www.sciencedirect.com/science/article/pii/S0925231220312820}
+}
 ```
 
 ## Contributors
